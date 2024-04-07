@@ -1,0 +1,1870 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+## load packages and data
+  require("knitr")
+  knitr::opts_knit$set(root.dir = "C:/Users/Cori Campbell/Data")
+  require("dplyr")
+  require("tidyr")
+  require("ggplot2")
+  require("ggfortify")
+  require("tableone")
+  require("data.table")
+  require("survival")
+  require("survminer")
+  require("lubridate")
+  require("readr")
+  require("reshape2")
+  require("plyr")
+  require("anytime")
+  require("reshape")
+  require("reshape2")
+  require("broom")
+  require("purrr")
+  require("ggplot2")
+  require("cowplot")
+  require("ggfortify")
+  
+```
+
+
+```{r data_load, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+## load data
+##rm(list = ls())
+
+  cancer_long <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_cancer_registry_records.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+  drugs_long <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_drug_long.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+AST_julia <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_1445.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+ALT <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_1297.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+Platelet_count <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_1447.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+BMI <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_200.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+alc_long <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_alcohol_long.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+smok_long <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_smoking_long.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+setwd("P:/OX54")
+##HBVDNA_level_2 <- fread("C:/Users/Cori Campbell.QRESEARCH/HBVDNA_level_2.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+##HBsAg_level_2 <- fread("C:/Users/Cori Campbell.QRESEARCH/HBsAg_level_2.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+
+HBsAg_pos <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_7626.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+HBeAg_pos <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_7627.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+HBcAg_pos <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_7629.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+DNA_pos <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_7630.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+DNA_level <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_7631.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+immun_test_HBV <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_value_observations_7635.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+cohort_master <- fread("C:/Users/Cori Campbell.QRESEARCH/OX54_cohort1.csv", header = T,stringsAsFactors = T,na.strings = c("", " ", "NA"))
+
+ 
+```
+
+# 1. Date cleaning: variables are renamed, dates are parsed and composite variables built (by combining Read and ICD code groups)
+
+
+```{r Cleaning_rename, include=FALSE}
+# clean
+## rename variables; NB all "min" dates are earliest recorded dates of exposures 
+{names(cohort_master)[3] <- "sex"
+names(cohort_master)[4] <- "SES"
+names(cohort_master)[5] <- "ethnic_present"
+names(cohort_master)[6] <- "ethnic"
+names(cohort_master)[7] <- "YOB"
+names(cohort_master)[8] <- "death_date"
+names(cohort_master)[9] <- "entry__date"
+names(cohort_master)[10] <- "exit_date"
+names(cohort_master)[11] <- "FU_status"
+## columns 12 and 13 are all values of start date (01jan1999) and end date (31 dec 2019) of study
+names(cohort_master)[14] <- "CCF_bin"
+names(cohort_master)[15] <- "CCF_date"
+names(cohort_master)[16] <- "HT_bin"
+names(cohort_master)[17] <- "HT_date"
+names(cohort_master)[18] <- "any_canc_bin"
+names(cohort_master)[19] <- "any_canc_date"
+names(cohort_master)[20] <- "renal_dis_bin"
+names(cohort_master)[21] <- "renal_dis_date"
+names(cohort_master)[22] <- "CVD_bin"
+names(cohort_master)[23] <- "CVD_date"
+names(cohort_master)[24] <- "T1DM_bin" ##cant find VarName in QWeb
+names(cohort_master)[25] <- "T1DM_date"
+names(cohort_master)[26] <- "Liv_canc_bin"
+names(cohort_master)[27] <- "Liv_canc_date"
+names(cohort_master)[28] <- "T2DM_bin" ##can't find VarName in QWeb
+names(cohort_master)[29] <- "T2DM_date"
+names(cohort_master)[30] <- "alc_1-2_units_perday_bin"
+names(cohort_master)[31] <- "alc_1-2_units_perday_date"
+names(cohort_master)[32] <- "alc_3-6_units_perday_bin"
+names(cohort_master)[33] <- "alc_3-6_units_perday_date"
+names(cohort_master)[34] <- "alc_7-9_units_perday_bin"
+names(cohort_master)[35] <- "alc_7-9_units_perday_date"
+names(cohort_master)[36] <- "alc_>9_units_perday_bin"
+names(cohort_master)[37] <- "alc_>9_units_perday_date"
+names(cohort_master)[38] <- "alc_cons_bin" ##QWeb group is "alcohol consumption amount, units/day"
+##probably delete in favour of long alc
+names(cohort_master)[39] <- "alc_cons_date"
+##probably delete in favour of long alc
+names(cohort_master)[40] <- "alc_<1_units_perday_bin"
+names(cohort_master)[41] <- "alc_<1_units_perday_date"
+names(cohort_master)[42] <- "ARLD_bin"
+names(cohort_master)[43] <- "ARLD_date"
+names(cohort_master)[44] <- "alc_cons2_bin" ##QWeb group is "alcohol consumption"
+##probably delete in favour of long alc
+names(cohort_master)[45] <- "alc_cons2_date"
+##probably delete in favour of long alc
+names(cohort_master)[46] <- "currdrink_unspec_bin"  ##QWeb group is "current drinker unpecified amount"
+names(cohort_master)[47] <- "currdrink_unspec_date"
+names(cohort_master)[48] <- "ascites_bin"
+names(cohort_master)[49] <- "ascites_date"
+names(cohort_master)[50] <- "autohep_bin"  ##QWeb group is "autoimmmune hepatitis"
+names(cohort_master)[51] <- "autohep_date"
+names(cohort_master)[52] <- "cervas_bin" ##QWeb group is "cerebrovascular disease"
+names(cohort_master)[53] <- "cervas_date"
+names(cohort_master)[54] <- "CHF_bin"
+###combine with CCF later
+names(cohort_master)[55] <- "CHF_date"
+names(cohort_master)[56] <- "CHB_bin"
+names(cohort_master)[57] <- "CHB_date"
+names(cohort_master)[58] <- "cirr_bin"
+names(cohort_master)[59] <- "cirr_date"
+names(cohort_master)[60] <- "CoB_bin" ##QWeb group is "country of birth"
+names(cohort_master)[61] <- "CoB_date"
+names(cohort_master)[62] <- "DM_total_bin" ##QWeb group is "Diabetes mellitus Read diagnosis"
+names(cohort_master)[63] <- "DM_total_date"
+names(cohort_master)[64] <- "DoB_bin"
+names(cohort_master)[65] <- "ESLD_bin" ##QWeb group is "end-stage liver disease"
+names(cohort_master)[66] <- "ESLD_date"
+names(cohort_master)[67] <- "exdrink_bin" ##QWeb group is "ex-drinker"
+names(cohort_master)[68] <- "exdrink_date"
+names(cohort_master)[69] <- "famhist_GI_neop_bin"
+names(cohort_master)[70] <- "famhist_GI_neop_date"
+names(cohort_master)[71] <- "HBsAg_pos_bin"
+names(cohort_master)[72] <- "HBsAg_pos_date"
+names(cohort_master)[73] <- "HBVDNA_pos_bin"
+names(cohort_master)[74] <- "HBVDNA_pos_date"
+names(cohort_master)[75] <- "HBVDNA_level_bin"
+names(cohort_master)[76] <- "HBVDNA_level_date"
+names(cohort_master)[77] <- "HBV_immun_test_pos_bin"
+names(cohort_master)[78] <- "HBV_immun_test_pos_date"
+names(cohort_master)[79] <- "HBV_vaccine_contraind_bin"
+names(cohort_master)[80] <- "HBV_vaccine_contraind_date"
+names(cohort_master)[81] <- "HBV_vaccine_refused_bin"
+names(cohort_master)[82] <- "HBV_vaccine_refused_date"
+names(cohort_master)[83] <- "HCC_stage_bin"
+names(cohort_master)[84] <- "HCC_stage_date"
+names(cohort_master)[85] <- "HCV_bin"
+names(cohort_master)[86] <- "HCV_date"
+names(cohort_master)[87] <- "HDV_bin"
+names(cohort_master)[88] <- "HDV_date"
+names(cohort_master)[89] <- "LD_hist_bin" ##QWeb group is "personal history of liver disease"
+names(cohort_master)[90] <- "LD_hist_date"
+names(cohort_master)[91] <- "HBV_screen_bin" ##QWeb group is "history of HBV screening"
+names(cohort_master)[92] <- "HBV_screen_date"
+names(cohort_master)[93] <- "HBV_vaccine_bin"
+names(cohort_master)[94] <- "HBV_vaccine_date"
+names(cohort_master)[95] <- "Hist_nongi_neop_bin" ##QR group is "Personal history of non-GI neoplasm"
+names(cohort_master)[96] <- "Hist_nongi_neop_date"
+names(cohort_master)[97] <- "HIV_bin"
+names(cohort_master)[98] <- "HIV_date"
+names(cohort_master)[99] <- "HT2_bin"
+names(cohort_master)[100] <- "HT2_date"
+names(cohort_master)[101] <- "IHD_bin"
+names(cohort_master)[102] <- "IHD_date"
+names(cohort_master)[103] <- "neop_bctsb_bin" ##QR group is "Malignant neoplasm of bone, connective tissue, skin and breast Read diagnosis "
+names(cohort_master)[104] <- "neop_bctsb_date"
+names(cohort_master)[105] <- "neop_dop_bin" ##QR group is "Malignant neoplasm of digestive organs and peritoneum Read diagnosis"
+names(cohort_master)[106] <- "neop_dop_date"
+names(cohort_master)[107] <- "neop_ebmcns_bin" ##QR group is "Malignant neoplasm of eye, brain, meninges and other parts of CNS Read diagnosis"
+names(cohort_master)[108] <- "neop_ebmcns_date"
+names(cohort_master)[109] <- "neop_guo_bin" ##QR group is "Malignant neoplasm of genitourinary organ Read diagnosis"
+names(cohort_master)[110] <- "neop_guo_date"
+names(cohort_master)[111] <- "neop_lht_bin" ##QR group is "Malignant neoplasm of lymphatic and haemopoietic tissue Read diagnosis"
+names(cohort_master)[112] <- "neop_lht_date"
+names(cohort_master)[113] <- "neop_locp_bin"  ##QR group is "Malignant neoplasm of lip, oral cavity and pharynx Read diagnosis "
+names(cohort_master)[114] <- "neop_locp_date"
+names(cohort_master)[115] <- "neop_rtit_bin"  ##QR group is "Malignant neoplasm of respiratory tract and intrathoracic organs Read diagnosis"
+names(cohort_master)[116] <- "neop_rtit_date"
+names(cohort_master)[117] <- "neop_second_bin"  ##QR group is "Any secondary malignant neoplasm Read diagnosis"
+names(cohort_master)[118] <- "neop_second_date"
+names(cohort_master)[119] <- "neop_tegs_bin" ##QR group is "Malignant neoplasm of thyroid gland, other endocr glands & structures Read diag"
+names(cohort_master)[120] <- "neop_tegs_date"
+names(cohort_master)[121] <- "NAFLD_bin"
+names(cohort_master)[122] <- "NAFLD_date"
+names(cohort_master)[123] <- "nohist_HBV_vacc_bin" ##QR group is "no history of HBV vaccine"
+names(cohort_master)[124] <- "nohist_HBV_vacc_date"
+names(cohort_master)[125] <- "Non_drinker_bin"
+names(cohort_master)[126] <- "Non_drinker_date"
+names(cohort_master)[127] <- "nonHCC_neop_bin"
+names(cohort_master)[128] <- "nonHCC_neop_date"
+names(cohort_master)[129] <- "pepUC_bin" ##QR group is "Peptic ulcer disease Read diagnosis"
+names(cohort_master)[130] <- "pepUC_date"
+names(cohort_master)[131] <- "HCC_bin"
+names(cohort_master)[132] <- "HCC_date"
+names(cohort_master)[133] <- "rheum_bin" ##QR group is "Rheumatic disease Read code diagnosis "
+names(cohort_master)[134] <- "rheum_date"
+names(cohort_master)[135] <- "toxliv_bin" ##QR group is "Toxic liver injury diagnosis Read"
+names(cohort_master)[136] <- "toxliv_date"
+names(cohort_master)[137] <- "unspec_KD_bin" ##QR group is "Unspecified kidney disease Read diagnosis"
+names(cohort_master)[138] <- "unspec_KD_date"
+names(cohort_master)[139] <- "varices_bin"
+names(cohort_master)[140] <- "varices_date"
+names(cohort_master)[141] <- "CKD_bin"
+names(cohort_master)[142] <- "CKD_date"
+names(cohort_master)[143] <- "ARLD_ICD10_bin"
+names(cohort_master)[144] <- "ARLD_ICD10_date"
+names(cohort_master)[145] <- "ascites_ICD10_bin"
+names(cohort_master)[146] <- "ascites_ICD10_date"
+names(cohort_master)[147] <- "autohep_ICD10_bin"
+names(cohort_master)[148] <- "autohep_ICD10_date"
+names(cohort_master)[149] <- "CHF_ICD10_bin"
+names(cohort_master)[150] <- "CHF_ICD10_date"
+names(cohort_master)[151] <- "CKD_ICD10_bin"
+names(cohort_master)[152] <- "CKD_ICD10_date"
+names(cohort_master)[153] <- "cirr_ICD10_bin"
+names(cohort_master)[154] <- "cirr_ICD10_date"
+names(cohort_master)[155] <- "CVD_ICD10_bin"
+names(cohort_master)[156] <- "CVD_ICD10_date"
+names(cohort_master)[157] <- "ESLD_ICD10_bin"
+names(cohort_master)[158] <- "ESLD_ICD10_date"
+names(cohort_master)[159] <- "CHB_ICD10_bin"
+names(cohort_master)[160] <- "CHB_ICD10_date"
+names(cohort_master)[161] <- "HCC_ICD10_bin"
+names(cohort_master)[162] <- "HCC_ICD10_date"
+names(cohort_master)[163] <- "HCV_ICD10_bin"
+names(cohort_master)[164] <- "HCV_ICD10_date"
+names(cohort_master)[165] <- "HIV_ICD10_bin"
+names(cohort_master)[166] <- "HIV_ICD10_date"
+names(cohort_master)[167] <- "HT_ICD10_bin"
+names(cohort_master)[168] <- "HT_ICD10_date"
+names(cohort_master)[169] <- "IHD_ICD10_bin"
+names(cohort_master)[170] <- "IHD_ICD10_date"
+names(cohort_master)[171] <- "neop_bctsb_ICD10_bin"
+names(cohort_master)[172] <- "neop_bctsb_ICD10_date"
+names(cohort_master)[174] <- "neop_dop_ICD10_date"
+names(cohort_master)[175] <- "neop_ebmcns_ICD10_bin"
+names(cohort_master)[176] <- "neop_ebmcns_ICD10_date"
+names(cohort_master)[177] <- "neop_guo_ICD10_bin"
+names(cohort_master)[178] <- "neop_guo_ICD10_date"
+names(cohort_master)[179] <- "neop_lht_ICD10_bin"
+names(cohort_master)[180] <- "neop_lht_ICD10_date"
+names(cohort_master)[181] <- "neop_locp_ICD10_bin"
+names(cohort_master)[182] <- "neop_locp_ICD10_date"
+names(cohort_master)[183] <- "neop_rtit_ICD10_bin"
+names(cohort_master)[184] <- "neop_rtit_ICD10_date"
+names(cohort_master)[185] <- "neop_second_ICD10_bin"
+names(cohort_master)[186] <- "neop_second_ICD10_date"
+names(cohort_master)[187] <- "neop_tegs_ICD10_bin"
+names(cohort_master)[188] <- "neop_tegs_ICD10_date"
+names(cohort_master)[189] <- "NAFLD_ICD10_bin"
+names(cohort_master)[190] <- "NAFLD_ICD10_date"
+names(cohort_master)[191] <- "nonHCC_neop_ICD10_bin"
+names(cohort_master)[192] <- "nonHCC_neop_ICD10_date"
+names(cohort_master)[193] <- "pepUC_ICD10_bin"
+names(cohort_master)[194] <- "pepUC_ICD10_date"
+names(cohort_master)[195] <- "rheum_ICD10_bin"
+names(cohort_master)[196] <- "rheum_ICD10_date"
+names(cohort_master)[197] <- "toxliv_ICD10_bin"
+names(cohort_master)[198] <- "toxliv_ICD10_date"
+names(cohort_master)[199] <- "unspec_KD_ICD10_bin"
+names(cohort_master)[200] <- "unspec_KD_ICD10_date"
+names(cohort_master)[201] <- "varices_ICD10_bin"
+names(cohort_master)[202] <- "varices_ICD10_date"
+names(cohort_master)[203] <- "target1"
+names(cohort_master)[204] <- "target2"
+names(cohort_master)[205] <- "target3"
+names(cohort_master)[206] <- "target4"
+names(cohort_master)[207] <- "target5"
+names(cohort_master)[208] <- "statin_count"
+names(cohort_master)[209] <- "statin_type"
+names(cohort_master)[210] <- "statin_start"
+names(cohort_master)[211] <- "statin_end"
+}
+```
+
+
+# get CHB cases from lab data
+```{r CHB_ids, include==FALSE, results = 'hide', warning=FALSE, message=FALSE, fig.show='hide'}
+DNA_level[, date := lubridate::dmy(effectivedatetime)]
+DNA_level[, count := .N, by=.(patid)]
+DNA_level[, mindate := min(date), by=.(patid)]
+DNA_level[, test := "DNA"]
+HBsAg_pos[, date := lubridate::dmy(effectivedatetime)]
+HBsAg_pos[, count := .N, by=.(patid)]
+HBsAg_pos[, mindate := min(date), by=.(patid)]
+HBsAg_pos[, test := "HBsAg"]
+hbv_biomark <- rbind(HBsAg_pos, DNA_level)
+hbv_biomark[, mindate := min(mindate), by=.(patid)]
+hbv_biomark[order(patid), ti_bw_tests := as.Date(date) - as.Date(mindate)]
+hbv_biomark[, test_status := ifelse(((test=="HBsAg" & numericvalue>0) | (test=="DNA" & numericvalue>10)) & ti_bw_tests>=183 & !is.na(numericvalue),
+                                    "pos",
+                                    "neg")]
+hbv_biomark[, test_status_relax := ifelse(((test=="HBsAg" & numericvalue>0) | (test=="DNA" & numericvalue>10)) & !is.na(numericvalue),
+                                    "pos",
+                                    "neg")]
+hbv_biomark[, count := .N, by=patid]
+setDT(hbv_biomark)
+hbv_biomark[, hbv_status := ifelse(test_status=="pos",
+                                   2,
+                                   1), by=.(patid)]
+hbv_biomark[, hbv_status_relax := ifelse(test_status_relax=="pos",
+                                   2,
+                                   1), by=.(patid)]
+hbv_biomark[, unique_test_status := length(unique(test_status)), by=.(patid)]
+hbv_biomark[, hbv_status := as.character(ifelse(unique_test_status==2,
+                                   2,
+                                   1)), by=.(patid)]
+hbv_biomark[, hbv_status := ifelse(hbv_status==2, "pos", "neg")]
+hbv_biomark[, hbv_status_relax := as.character(hbv_status_relax)]
+hbv_biomark[, hbv_status_relax := ifelse(hbv_status_relax=="2", "pos", "neg")]
+lab_CHB_ids <- hbv_biomark[hbv_status=="pos", .(patid, mindate, test)]
+lab_CHB_ids <- lab_CHB_ids[order(mindate),head(.SD,1), by="patid"]
+lab_CHB_ids <- setDT(lab_CHB_ids)
+lab_CHB_ids$source <- "lab"
+lab_CHB_ids[, lab_mindate := as.Date(mindate)]
+
+####
+lab_CHB_relax_ids <- hbv_biomark[hbv_status_relax=="pos", .(patid, mindate, test)]
+lab_CHB_relax_ids <- lab_CHB_relax_ids[order(mindate),head(.SD,1), by="patid"]
+lab_CHB_relax_ids <- setDT(lab_CHB_relax_ids)
+lab_CHB_relax_ids$source <- "lab_relax"
+
+
+temp_delete <- lab_CHB_ids[cohort_master, on="patid", nomatch=NULL] # temporarily get all cohort rows for lab_CHB_ids patids, in order to get entry and exit dates
+temp_delete <- temp_delete[order(entry__date),head(.SD,1), by="patid"]
+lab_CHB_ids <- temp_delete[, .(patid, CHB_bin, CHB_date, CHB_ICD10_bin, CHB_ICD10_date, entry__date, exit_date)][lab_CHB_ids, on="patid", nomatch=NA]
+rm(temp_delete)
+
+
+cohort_master[, count := .N, by=patid]
+
+
+
+ICD_CHB_ids <- cohort_master[CHB_ICD10_bin==1,.(patid, CHB_ICD10_bin, CHB_ICD10_date, entry__date, exit_date)]
+ICD_CHB_ids <- ICD_CHB_ids[order(CHB_ICD10_date),head(.SD,1), by="patid"]
+ICD_CHB_ids$source <- "ICD"
+ICD_CHB_ids$test <- "N/A"
+ICD_CHB_ids$CHB_bin <- 0
+ICD_CHB_ids$CHB_date <- 0
+ICD_CHB_ids$mindate <- 0
+
+
+Read_CHB_ids <- cohort_master[CHB_bin==1,.(patid, CHB_bin, CHB_date, entry__date, exit_date)]
+Read_CHB_ids <- Read_CHB_ids[order(CHB_date),head(.SD,1), by="patid"]
+Read_CHB_ids$source <- "read"
+Read_CHB_ids$test <- "N/A"
+Read_CHB_ids$CHB_ICD10_bin <- 0
+Read_CHB_ids$CHB_ICD10_date <- 0
+Read_CHB_ids$mindate <- 0
+
+CHB_ids <- merge(ICD_CHB_ids, Read_CHB_ids, by="patid", all=TRUE)
+CHB_ids <- merge(CHB_ids, lab_CHB_ids, by="patid", all=TRUE)
+#CHB_ids_relax <- merge(ICD_CHB_ids, Read_CHB_ids, by="patid", all=TRUE)
+#CHB_ids_relax <- merge(CHB_ids_relax, lab_CHB_relax_ids, by="patid", all=TRUE)
+
+date_cols <- grep("*date*", names(CHB_ids), value = T)
+lapply(date_cols, class)
+#View(CHB_ids[, ..date_cols])
+CHB_ids[,(date_cols) := lapply(.SD, lubridate::dmy), .SDcols= date_cols]
+lapply(CHB_ids[, ..date_cols], class)
+
+CHB_ids[, source_use := fcase(source=="lab" & is.na(source.x) & is.na(source.y), "lab",
+                              source.x=="ICD" & is.na(source) & is.na(source.y), "ICD",
+                              source.x=="ICD" & source.y=="read", "ICD/read",
+                              source.x=="ICD" & source.y=="read" & source=="lab", "ICD/read/lab",
+                              source.x=="ICD" & source=="lab", "ICD/lab",
+                              source=="lab" & source.y=="read", "read/lab",
+                              source.y=="read" & is.na(source.x) & is.na(source), "read")]
+
+CHB_ids <- cohort_master[, .(patid, CHB_ICD10_date)][CHB_ids, on=.(patid), nomatch=NULL]
+CHB_ids <- cohort_master[, .(patid, CHB_date)][CHB_ids, on=.(patid), nomatch=NULL]
+
+
+CHB_ids <-CHB_ids[, entry_date_use := pmin(entry__date, entry__date.x, entry__date.y, na.rm = T), by=.(patid)]
+CHB_ids <-CHB_ids[, exit_date_use := pmin(exit_date, exit_date.x, exit_date.y, na.rm = T), by=.(patid)]
+
+#check here, something is cutting the majority of ids (line 394)
+date_cols <- grep("*date*", names(CHB_ids), value = T)
+CHB_ids[, CHB_date := lubridate::dmy(CHB_date)]
+CHB_ids[, CHB_ICD10_date := lubridate::dmy(CHB_ICD10_date)]
+lapply(CHB_ids[, ..date_cols], class)
+CHB_ids <- merge(x = lab_CHB_ids[, .(patid, lab_mindate)], y = CHB_ids, by="patid", all = T)
+date_cols <- grep("*date*", names(CHB_ids), value = T)
+sort(colnames(CHB_ids[, ..date_cols]))
+
+CHB_ids <-CHB_ids[, mindate_use := fcase(
+  source_use=="ICD", pmin(i.CHB_ICD10_date, CHB_ICD10_date, CHB_ICD10_date.x, CHB_ICD10_date.y, na.rm = T),
+  source_use=="ICD/read", pmin(i.CHB_ICD10_date, CHB_ICD10_date, CHB_ICD10_date.x, CHB_ICD10_date.y, i.CHB_date, CHB_date, CHB_date.x, CHB_date.y, na.rm = T),
+  source_use=="ICD/lab", pmin(i.CHB_ICD10_date, CHB_ICD10_date, CHB_ICD10_date.x, CHB_ICD10_date.y,mindate, mindate.x, mindate.y, lab_mindate.x, na.rm = T),
+  source_use=="read", pmin(i.CHB_date, CHB_date, CHB_date.x, CHB_date.y, na.rm = T),
+  source_use=="read/lab", pmin(i.CHB_date, CHB_date, CHB_date.x, CHB_date.y, mindate, mindate.x, mindate.y, lab_mindate.x, na.rm = T),
+  source_use=="lab", pmin(mindate, mindate.x, mindate.y, lab_mindate.x, na.rm = T)
+  ), by=.(patid)]
+
+table(CHB_ids$source_use, is.na(CHB_ids$mindate_use))
+colSums(is.na(CHB_ids))
+
+# View(CHB_ids[source_use == "lab", .(patid, source_use, lab_mindate)])
+
+
+CHB_ids <-CHB_ids[,.(patid, test, CHB_ICD10_date, CHB_date, lab_mindate.x, entry_date_use, exit_date_use, mindate_use, source_use)]
+table(CHB_ids$source_use)
+colSums(is.na(CHB_ids))
+```
+
+
+
+```{r define_cohort, include=FALSE}
+# restrict cohort to those with CHB
+cohort_CHB <- setDT(cohort_master)[patid %in% CHB_ids$patid]
+
+```
+
+
+```{r Cleaning_parse_dates, include=FALSE}
+# parse dates
+## Convert all variables ending in "date" to characters
+
+## Parse dates
+
+  date_cols <- grep("*_date", names(cohort_CHB), value = T)
+  library(data.table)
+  setDT(cohort_CHB)[,(date_cols) := lapply(.SD, lubridate::dmy), .SDcols= date_cols]
+  df <- data.frame(cohort_CHB)
+
+
+## Round early exposure dates up to Jan 01 1999
+{date_cols <- grep("*_date", names(cohort_CHB), value = T)
+  # @Tina: 
+  candidate_value <- as.Date("1999-01-01")
+  replace_date <- function(x){replace(x,!is.na(x) & x<candidate_value,candidate_value)}
+  # data.table solution
+  cohort_CHB <- setDT(cohort_CHB)
+  cohort_CHB[,(date_cols) := lapply(.SD, replace_date), .SDcols=date_cols]
+  cohort_CHB <- data.frame(cohort_CHB)
+}
+```
+
+
+```{r Cleaning_endpoints, include=FALSE}
+
+
+## HCC
+canc_reg_hcc <- cancer_long[ which(cancer_long$cancer_site3=="C22"),c(1,2)]
+canc_reg_hcc$HCC_reg_bin <- 1
+canc_reg_hcc <- canc_reg_hcc[patid %in% CHB_ids$patid]
+cohort_CHB <- canc_reg_hcc[cohort_CHB, on="patid", nomatch=NA]
+cohort_CHB[, HCC_reg_bin := fcase(
+  HCC_reg_bin == 1, 1,
+  is.na(HCC_reg_bin), 0
+)]
+cohort_CHB[, table(HCC_reg_bin, HCC_ICD10_bin)]
+lapply(cohort_CHB[, .(HCC_reg_bin, HCC_ICD10_bin, HCC_bin)], class)
+
+cohort_CHB[, HCC_source := fcase(
+  HCC_bin == 1 & HCC_ICD10_bin == 0 & HCC_reg_bin == 0, "Read",
+  HCC_ICD10_bin == 1 & HCC_reg_bin == 0 & HCC_bin == 0, "ICD",
+  HCC_reg_bin == 1 & HCC_ICD10_bin == 0 & HCC_bin == 0, "reg",
+  HCC_bin == 1 & HCC_ICD10_bin == 1 & HCC_reg_bin == 0, "Read/ICD",
+  HCC_bin == 1 & HCC_reg_bin == 1 & HCC_ICD10_bin == 0, "Read/reg",
+  HCC_ICD10_bin == 1 & HCC_reg_bin == 1 & HCC_bin == 0, "ICD/reg",
+  HCC_bin == 1 & HCC_ICD10_bin == 1 & HCC_reg_bin == 1, "Read/ICD/reg"
+  
+)]
+
+cohort_CHB$HCC_comb[is.na(cohort_CHB$HCC_bin) | is.na(cohort_CHB$HCC_ICD10_bin) | is.na(cohort_CHB$HCC_reg_bin)] <- NA 
+cohort_CHB$HCC_comb[cohort_CHB$HCC_bin==1 | cohort_CHB$HCC_ICD10_bin==1 | cohort_CHB$HCC_reg_bin==1] <- 1
+cohort_CHB$HCC_comb[cohort_CHB$HCC_bin==0 & cohort_CHB$HCC_ICD10_bin==0 & cohort_CHB$HCC_reg_bin==0] <- 0
+cohort_CHB$HCC_comb[is.na(cohort_CHB$HCC_comb)] <- 0
+cohort_CHB[, cancer_date := lubridate::dmy(cancer_date)]
+cohort_CHB[,HCC_comb_earliest_date:= pmin(HCC_date, HCC_ICD10_date, cancer_date, na.rm = T)]
+table(cohort_CHB$HCC_comb)
+table(cohort_CHB$HCC_source)
+
+## other non-HCC cancers - linked from registry
+nonHCC_cancer <- cancer_long[patid %in% CHB_ids$patid]
+nonHCC_cancer[, cancer_site3 := as.factor(cancer_site3)]
+nonHCC_cancer[, table(cancer_site3)]
+
+## CHF
+cohort_CHB$CHF_comb[is.na(cohort_CHB$CHF_bin) | is.na(cohort_CHB$CCF_bin) | is.na(cohort_CHB$CHF_ICD10_bin)] <- NA 
+cohort_CHB$CHF_comb[cohort_CHB$CHF_bin==1 | cohort_CHB$CCF_bin==1 | cohort_CHB$CHF_ICD10_bin==1] <- 1
+cohort_CHB$CHF_comb[cohort_CHB$CHF_bin==0 & cohort_CHB$CCF_bin==0 & cohort_CHB$CHF_ICD10_bin==0] <- 0
+table(cohort_CHB$CHF_comb)
+#Keep earliest dates
+setDT(cohort_CHB)
+cohort_CHB[,CHF_earliest_date:= pmin(CCF_date, CHF_date, CHF_ICD10_date, na.rm = T)] # very fast
+
+##HT
+cohort_CHB$HT_comb[is.na(cohort_CHB$HT_bin) | is.na(cohort_CHB$HT2_bin) | is.na(cohort_CHB$HT_ICD10_bin)] <- NA 
+cohort_CHB$HT_comb[cohort_CHB$HT_bin==1 | cohort_CHB$HT2_bin==1 | cohort_CHB$HT_ICD10_bin==1] <- 1
+cohort_CHB$HT_comb[cohort_CHB$HT_bin==0 & cohort_CHB$HT2_bin==0 & cohort_CHB$HT_ICD10_bin==0] <- 0
+table(cohort_CHB$HT_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,HT_earliest_date:= pmin(HT_date, HT2_date, HT_ICD10_date, na.rm = T)] # very fast
+
+
+
+
+##CKD
+cohort_CHB$CKD_comb[is.na(cohort_CHB$CKD_bin) | is.na(cohort_CHB$CKD_ICD10_bin)] <- NA 
+cohort_CHB$CKD_comb[cohort_CHB$CKD_bin==1 | cohort_CHB$CKD_ICD10_bin==1] <- 1
+cohort_CHB$CKD_comb[cohort_CHB$CKD_bin==0 & cohort_CHB$CKD_ICD10_bin==0] <- 0
+table(cohort_CHB$CKD_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,CKD_earliest_date:= pmin(CKD_date, CKD_ICD10_date, na.rm = T)] # very fast
+
+##ARLD
+cohort_CHB$ARLD_comb[is.na(cohort_CHB$ARLD_bin) | is.na(cohort_CHB$ARLD_ICD10_bin)] <- NA 
+cohort_CHB$ARLD_comb[cohort_CHB$ARLD_bin==1 | cohort_CHB$ARLD_ICD10_bin==1] <- 1
+cohort_CHB$ARLD_comb[cohort_CHB$ARLD_bin==0 & cohort_CHB$ARLD_ICD10_bin==0] <- 0
+table(cohort_CHB$ARLD_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,ARLD_earliest_date:= pmin(ARLD_date, ARLD_ICD10_date, na.rm = T)] # very fast
+
+##ascites
+cohort_CHB$ascites_comb[is.na(cohort_CHB$ascites_bin) | is.na(cohort_CHB$ascites_ICD10_bin)] <- NA 
+cohort_CHB$ascites_comb[cohort_CHB$ascites_bin==1 | cohort_CHB$ascites_ICD10_bin==1] <- 1
+cohort_CHB$ascites_comb[cohort_CHB$ascites_bin==0 & cohort_CHB$ascites_ICD10_bin==0] <- 0
+table(cohort_CHB$ascites_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,ascites_earliest_date:= pmin(ascites_date, ascites_ICD10_date, na.rm = T)] # very fast
+
+##Autoimmune hepatitis
+cohort_CHB$autohep_comb[is.na(cohort_CHB$autohep_bin) | is.na(cohort_CHB$autohep_ICD10_bin)] <- NA 
+cohort_CHB$autohep_comb[cohort_CHB$autohep_bin==1 | cohort_CHB$autohep_ICD10_bin==1] <- 1
+cohort_CHB$autohep_comb[cohort_CHB$autohep_bin==0 & cohort_CHB$autohep_ICD10_bin==0] <- 0
+table(cohort_CHB$autohep_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,autohep_earliest_date:= pmin(autohep_date, autohep_ICD10_date, na.rm = T)] # very fast
+
+
+##cerebrovasular disease
+cohort_CHB$cervas_comb[is.na(cohort_CHB$CVD_bin) | is.na(cohort_CHB$cervas_bin) | is.na(cohort_CHB$CVD_ICD10_bin)] <- NA 
+cohort_CHB$cervas_comb[cohort_CHB$CVD_bin==1 | cohort_CHB$cervas_bin==1 | cohort_CHB$CVD_ICD10_bin==1] <- 1
+cohort_CHB$cervas_comb[cohort_CHB$CVD_bin==0 & cohort_CHB$cervas_bin==0 & cohort_CHB$CVD_ICD10_bin==0] <- 0
+table(cohort_CHB$cervas_comb)
+#Keep earliest dates
+setDT(cohort_CHB)
+cohort_CHB[,cervas_earliest_date:= pmin(CVD_date, cervas_date, CVD_ICD10_date, na.rm = T)] # very fast
+
+##cirrhosis
+cohort_CHB$cirr_comb[is.na(cohort_CHB$cirr_bin) | is.na(cohort_CHB$cirr_ICD10_bin)] <- NA 
+cohort_CHB$cirr_comb[cohort_CHB$cirr_bin==1 | cohort_CHB$cirr_ICD10_bin==1] <- 1
+cohort_CHB$cirr_comb[cohort_CHB$cirr_bin==0 & cohort_CHB$cirr_ICD10_bin==0] <- 0
+table(cohort_CHB$cirr_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,cirr_earliest_date:= pmin(cirr_date, cirr_ICD10_date, na.rm = T)] # very fast
+
+##ESLD
+cohort_CHB$ESLD_comb[is.na(cohort_CHB$ESLD_bin) | is.na(cohort_CHB$ESLD_ICD10_bin)] <- NA 
+cohort_CHB$ESLD_comb[cohort_CHB$ESLD_bin==1 | cohort_CHB$ESLD_ICD10_bin==1] <- 1
+cohort_CHB$ESLD_comb[cohort_CHB$ESLD_bin==0 & cohort_CHB$ESLD_ICD10_bin==0] <- 0
+table(cohort_CHB$ESLD_comb)
+#Keep earliest dates
+setDT(cohort_CHB)
+cohort_CHB[,ESLD_comb_earliest_date:= pmin(ESLD_date, ESLD_ICD10_date, na.rm = T)] # very fast
+
+##HCV
+cohort_CHB$HCV_comb[is.na(cohort_CHB$HCV_bin) | is.na(cohort_CHB$HCV_ICD10_bin)] <- NA 
+cohort_CHB$HCV_comb[cohort_CHB$HCV_bin==1 | cohort_CHB$HCV_ICD10_bin==1] <- 1
+cohort_CHB$HCV_comb[cohort_CHB$HCV_bin==0 & cohort_CHB$HCV_ICD10_bin==0] <- 0
+table(cohort_CHB$HCV_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,HCV_earliest_date:= pmin(HCV_date, HCV_ICD10_date, na.rm = T)] # very fast
+
+##HIV
+cohort_CHB$HIV_comb[is.na(cohort_CHB$HIV_bin) | is.na(cohort_CHB$HIV_ICD10_bin)] <- NA 
+cohort_CHB$HIV_comb[cohort_CHB$HIV_bin==1 | cohort_CHB$HIV_ICD10_bin==1] <- 1
+cohort_CHB$HIV_comb[cohort_CHB$HIV_bin==0 & cohort_CHB$HIV_ICD10_bin==0] <- 0
+table(cohort_CHB$HIV_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,HIV_earliest_date:= pmin(HIV_date, HIV_ICD10_date, na.rm = T)] # very fast
+
+##IHD
+cohort_CHB$IHD_comb[is.na(cohort_CHB$IHD_bin) | is.na(cohort_CHB$IHD_ICD10_bin)] <- NA 
+cohort_CHB$IHD_comb[cohort_CHB$IHD_bin==1 | cohort_CHB$IHD_ICD10_bin==1] <- 1
+cohort_CHB$IHD_comb[cohort_CHB$IHD_bin==0 & cohort_CHB$IHD_ICD10_bin==0] <- 0
+table(cohort_CHB$IHD_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,IHD_earliest_date:= pmin(IHD_date, IHD_ICD10_date, na.rm = T)] # very fast
+
+##NAFLD
+cohort_CHB$NAFLD_comb[is.na(cohort_CHB$NAFLD_bin) | is.na(cohort_CHB$NAFLD_ICD10_bin)] <- NA 
+cohort_CHB$NAFLD_comb[cohort_CHB$NAFLD_bin==1 | cohort_CHB$NAFLD_ICD10_bin==1] <- 1
+cohort_CHB$NAFLD_comb[cohort_CHB$NAFLD_bin==0 & cohort_CHB$NAFLD_ICD10_bin==0] <- 0
+table(cohort_CHB$NAFLD_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,NAFLD_earliest_date:= pmin(NAFLD_date, NAFLD_ICD10_date, na.rm = T)] # very fast
+
+
+##Non-HCC neoplasms
+cohort_CHB$nonHCC_neop_comb[is.na(cohort_CHB$nonHCC_neop_bin_bin) | is.na(cohort_CHB$nonHCC_neop_ICD10_bin)] <- NA 
+cohort_CHB$nonHCC_neop_comb[cohort_CHB$nonHCC_neop_bin==1 | cohort_CHB$nonHCC_neop_ICD10_bin==1] <- 1
+cohort_CHB$nonHCC_neop_comb[cohort_CHB$nonHCC_neop_bin==0 & cohort_CHB$nonHCC_neop_ICD10_bin==0] <- 0
+table(cohort_CHB$nonHCC_neop_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,nonHCC_neop_earliest_date:= pmin(nonHCC_neop_date, nonHCC_neop_ICD10_date, na.rm = T)] # very fast
+
+##peptic ulcer
+cohort_CHB$pepUC_comb[is.na(cohort_CHB$pepUC_bin) | is.na(cohort_CHB$pepUC_ICD10_bin)] <- NA 
+cohort_CHB$pepUC_comb[cohort_CHB$pepUC_bin==1 | cohort_CHB$pepUC_ICD10_bin==1] <- 1
+cohort_CHB$pepUC_comb[cohort_CHB$pepUC_bin==0 & cohort_CHB$pepUC_ICD10_bin==0] <- 0
+table(cohort_CHB$pepUC_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,pepUC_earliest_date:= pmin(pepUC_date, pepUC_ICD10_date, na.rm = T)] # very fast
+
+##rhematoc disease
+cohort_CHB$rheum_comb[is.na(cohort_CHB$rheum_bin) | is.na(cohort_CHB$rheum_ICD10_bin)] <- NA 
+cohort_CHB$rheum_comb[cohort_CHB$rheum_bin==1 | cohort_CHB$rheum_ICD10_bin==1] <- 1
+cohort_CHB$rheum_comb[cohort_CHB$rheum_bin==0 & cohort_CHB$rheum_ICD10_bin==0] <- 0
+table(cohort_CHB$rheum_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,rheum_earliest_date:= pmin(rheum_date, rheum_ICD10_date, na.rm = T)] # very fast
+
+##toxic liver injury
+cohort_CHB$toxliv_comb[is.na(cohort_CHB$toxliv_bin) | is.na(cohort_CHB$toxliv_ICD10_bin)] <- NA 
+cohort_CHB$toxliv_comb[cohort_CHB$toxliv_bin==1 | cohort_CHB$toxliv_ICD10_bin==1] <- 1
+cohort_CHB$toxliv_comb[cohort_CHB$toxliv_bin==0 & cohort_CHB$toxliv_ICD10_bin==0] <- 0
+table(cohort_CHB$toxliv_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,toxliv_earliest_date:= pmin(toxliv_date, toxliv_ICD10_date, na.rm = T)] # very fast
+
+##unspecified kidney disease
+cohort_CHB$unspec_KD_comb[is.na(cohort_CHB$unspec_KD_bin) | is.na(cohort_CHB$unspec_KD_ICD10_bin)] <- NA 
+cohort_CHB$unspec_KD_comb[cohort_CHB$unspec_KD_bin==1 | cohort_CHB$unspec_KD_ICD10_bin==1] <- 1
+cohort_CHB$unspec_KD_comb[cohort_CHB$unspec_KD_bin==0 & cohort_CHB$unspec_KD_ICD10_bin==0] <- 0
+table(cohort_CHB$unspec_KD_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,unspec_KD_earliest_date:= pmin(unspec_KD_date, unspec_KD_ICD10_date, na.rm = T)] # very fast
+
+
+
+## still to do: combine cols 103:120 with their ICD counterparts
+```
+
+# create/rename variables for non-HCC cancers
+```{r non-HCC_cancer, echo=FALSE}
+# Malignant neoplasm of bone, connective tissue, skin and breast
+cohort_CHB$neop_bctsb_comb[is.na(cohort_CHB$neop_bctsb_bin) | is.na(cohort_CHB$neop_bctsb_ICD10_bin)] <- NA 
+cohort_CHB$neop_bctsb_comb[cohort_CHB$neop_bctsb_bin==1 | cohort_CHB$neop_bctsb_ICD10_bin==1] <- 1
+cohort_CHB$neop_bctsb_comb[cohort_CHB$neop_bctsb_bin==0 & cohort_CHB$neop_bctsb_ICD10_bin==0] <- 0
+table(cohort_CHB$neop_bctsb_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,neop_bctsb_earliest_date:= pmin(neop_bctsb_date, neop_bctsb_ICD10_date, na.rm = T)] # very fast
+
+# Malignant neoplasm of digestive organs and peritoneum
+cohort_CHB$neop_dop_comb[is.na(cohort_CHB$neop_dop_bin)] <- NA 
+cohort_CHB$neop_dop_comb[cohort_CHB$neop_dop_bin==1] <- 1
+cohort_CHB$neop_dop_comb[cohort_CHB$neop_dop_bin==0 ] <- 0
+table(cohort_CHB$neop_dop_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,neop_dop_earliest_date:= pmin(neop_dop_date, neop_dop_ICD10_date, na.rm = T)] # very fast
+
+# Malignant neoplasm of eyes, brain, meninges and other parts of the CNS
+cohort_CHB$neop_ebmcns_comb[is.na(cohort_CHB$neop_ebmcns_bin) | is.na(cohort_CHB$neop_ebmcns_ICD10_bin)] <- NA 
+cohort_CHB$neop_ebmcns_comb[cohort_CHB$neop_ebmcns_bin==1 | cohort_CHB$neop_ebmcns_ICD10_bin==1] <- 1
+cohort_CHB$neop_ebmcns_comb[cohort_CHB$neop_ebmcns_bin==0 & cohort_CHB$neop_ebmcns_ICD10_bin==0] <- 0
+table(cohort_CHB$neop_ebmcns_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,neop_ebmcns_earliest_date:= pmin(neop_ebmcns_date, neop_ebmcns_ICD10_date, na.rm = T)] # very fast
+
+
+# Malignant neoplasm of genitourinary organ
+cohort_CHB$neop_guo_comb[is.na(cohort_CHB$neop_guo_bin) | is.na(cohort_CHB$neop_guo_ICD10_bin)] <- NA 
+cohort_CHB$neop_guo_comb[cohort_CHB$neop_guo_bin==1 | cohort_CHB$neop_guo_ICD10_bin==1] <- 1
+cohort_CHB$neop_guo_comb[cohort_CHB$neop_guo_bin==0 & cohort_CHB$neop_guo_ICD10_bin==0] <- 0
+table(cohort_CHB$neop_guo_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,neop_guo_earliest_date:= pmin(neop_guo_date, neop_guo_ICD10_date, na.rm = T)] # very fast
+
+
+
+# Malignant neoplasm of lip, oral cavity and pharynx
+cohort_CHB$neop_locp_comb[is.na(cohort_CHB$neop_locp_bin) | is.na(cohort_CHB$neop_locp_ICD10_bin)] <- NA 
+cohort_CHB$neop_locp_comb[cohort_CHB$neop_locp_bin==1 | cohort_CHB$neop_locp_ICD10_bin==1] <- 1
+cohort_CHB$neop_locp_comb[cohort_CHB$neop_locp_bin==0 & cohort_CHB$neop_locp_ICD10_bin==0] <- 0
+table(cohort_CHB$neop_locp_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,neop_locp_earliest_date:= pmin(neop_locp_date, neop_locp_ICD10_date, na.rm = T)] # very fast
+
+
+# Malignant neoplasm of lymphatic and haemopoietic tissue
+cohort_CHB$neop_lht_comb[is.na(cohort_CHB$neop_lht_bin) | is.na(cohort_CHB$neop_lht_ICD10_bin)] <- NA 
+cohort_CHB$neop_lht_comb[cohort_CHB$neop_lht_bin==1 | cohort_CHB$neop_lht_ICD10_bin==1] <- 1
+cohort_CHB$neop_lht_comb[cohort_CHB$neop_lht_bin==0 & cohort_CHB$neop_lht_ICD10_bin==0] <- 0
+table(cohort_CHB$neop_lht_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,neop_lht_earliest_date:= pmin(neop_lht_date, neop_lht_ICD10_date, na.rm = T)] # very fast
+
+
+
+# Malignant neoplasm of respiratory tract and intrathoracic organs
+cohort_CHB$neop_rtit_comb[is.na(cohort_CHB$neop_rtit_bin) | is.na(cohort_CHB$neop_rtit_ICD10_bin)] <- NA 
+cohort_CHB$neop_rtit_comb[cohort_CHB$neop_rtit_bin==1 | cohort_CHB$neop_rtit_ICD10_bin==1] <- 1
+cohort_CHB$neop_rtit_comb[cohort_CHB$neop_rtit_bin==0 & cohort_CHB$neop_rtit_ICD10_bin==0] <- 0
+table(cohort_CHB$neop_rtit_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,neop_rtit_earliest_date:= pmin(neop_rtit_date, neop_rtit_ICD10_date, na.rm = T)] # very fast
+
+
+
+# Malignant neoplasm of thyroid gland and other endocrine glands and structures
+cohort_CHB$neop_tegs_comb[is.na(cohort_CHB$neop_tegs_bin) | is.na(cohort_CHB$neop_tegs_ICD10_bin)] <- NA 
+cohort_CHB$neop_tegs_comb[cohort_CHB$neop_tegs_bin==1 | cohort_CHB$neop_tegs_ICD10_bin==1] <- 1
+cohort_CHB$neop_tegs_comb[cohort_CHB$neop_tegs_bin==0 & cohort_CHB$neop_tegs_ICD10_bin==0] <- 0
+table(cohort_CHB$neop_tegs_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,neop_tegs_earliest_date:= pmin(neop_tegs_date, neop_tegs_ICD10_date, na.rm = T)] # very fast
+
+
+
+# custom variable for any non-HCC neoplasm
+cohort_CHB$nonHCC_neop_alt_comb[cohort_CHB$neop_bctsb_comb==1 | cohort_CHB$neop_dop_comb==1 | cohort_CHB$neop_ebmcns_comb==1 | 
+                                  cohort_CHB$neop_guo_comb == 1 | cohort_CHB$neop_locp_comb==1 | cohort_CHB$neop_lht_comb==1 | 
+cohort_CHB$neop_rtit_comb==1 | cohort_CHB$neop_tegs_comb==1 ] <- 1
+cohort_CHB$nonHCC_neop_alt_comb[cohort_CHB$nonHCC_neop_alt_comb!=1 | is.na(cohort_CHB$nonHCC_neop_alt_comb)] <- 0
+table(cohort_CHB$nonHCC_neop_alt_comb)
+#keep earliest date
+setDT(cohort_CHB)
+cohort_CHB[,nonHCC_neop_alt_earliest_date:= pmin(cohort_CHB$neop_bctsb_earliest_date, cohort_CHB$neop_dop_earliest_date, cohort_CHB$neop_ebmcns_earliest_date,
+cohort_CHB$neop_guo_earliest_date, cohort_CHB$neop_locp_earliest_date, cohort_CHB$neop_lht_earliest_date, 
+cohort_CHB$neop_rtit_earliest_date, cohort_CHB$neop_tegs_earliest_date , na.rm = T)] # very fast
+
+# categorical variable for non-HCC neoplasms
+cohort_CHB[, nonHCC_neop_alt_cat := fcase(
+  cohort_CHB$neop_bctsb_comb==1, "Bone, connective tissue, skin and breast",
+  cohort_CHB$neop_dop_comb==1, "Digestive organs and peritoneum",
+  cohort_CHB$neop_ebmcns_comb==1, "Eye, brain, meninges and other parts of the CNS",
+  cohort_CHB$neop_guo_comb == 1, "Genitourinary organ",
+  cohort_CHB$neop_locp_comb==1, "Lip, oral cavity and pharynx",
+  cohort_CHB$neop_lht_comb==1, "Lymphatic and haemopoietic tissue",
+  cohort_CHB$neop_rtit_comb==1, "Respiratory tract and intrathoracic organs", 
+  cohort_CHB$neop_tegs_comb==1, "Thyroid gland and other endocrine glands and structures")]
+cohort_CHB[, nonHCC_neop_alt_cat := ifelse(is.na(nonHCC_neop_alt_cat),
+                                           "no non-HCC cancer",
+                                           nonHCC_neop_alt_cat
+                                           )]
+table(cohort_CHB$nonHCC_neop_alt_cat)
+
+
+
+```
+
+
+# clean smoking and alcohol data
+```{r, smok_alc, echo = FALSE, results = 'hide'}
+
+HCC_ids <- cohort_CHB[HCC_comb == 1, .(patid, HCC_comb_earliest_date)]
+# # # # #
+# alcohol
+# # # # #
+
+
+#View(cohort_CHB[, c(1, 32:49)])
+#
+alc_long <- alc_long[patid %in% CHB_ids$patid]
+#
+
+alc <- CHB_ids[, .(patid, mindate_use, source_use)][alc_long, on=.(patid), nomatch=NA]
+alc <- alc[patid %in% CHB_ids$patid]
+alc[, date := lubridate::dmy(effectivedatetime)]
+alc[, ti_from_hbv := mindate_use - date]
+alc1 <- alc[ti_from_hbv < 366 & ti_from_hbv > -366,]
+alc2 <- alc[ti_from_hbv < 731 & ti_from_hbv > -731,]
+alc3 <- alc[ti_from_hbv < 1096 & ti_from_hbv > -1096,]
+alc3[, ti_from_hbv := abs(ti_from_hbv)]
+alc <- alc3[order(ti_from_hbv, patid), head(.SD, 1L), by = .(patid)]
+#View(alc)
+
+
+alc[, alc_cons_cat := fcase(
+alcoholcategoryid==0, "non-drinker", 
+alcoholcategoryid==1, "trivial <1u/day", 
+alcoholcategoryid==2, "light 1-2u/day", 
+alcoholcategoryid==3, "moderate 3-6u/day", 
+alcoholcategoryid==4 | alcoholcategoryid==5, "heavy 7+/day"
+)]
+alc[alcoholcategoryid==6, alc_cons_cat := NA] #value is 200 units consumed per day, biologically implausible
+alc <- alc[, .(patid, alc_cons_cat)]
+
+# # # # #
+# smokng 
+# # # # #
+
+smok_long <- smok_long[patid %in% CHB_ids$patid]
+#
+
+smok <- CHB_ids[, .(patid, mindate_use, source_use)][smok_long, on=.(patid), nomatch=NA]
+smok <- smok[patid %in% CHB_ids$patid]
+smok[, date := lubridate::dmy(effectivedatetime)]
+smok[, ti_from_hbv := mindate_use - date]
+smok1 <- smok[ti_from_hbv < 366 & ti_from_hbv > -366,]
+smok2 <- smok[ti_from_hbv < 731 & ti_from_hbv > -731,]
+smok3 <- smok[ti_from_hbv < 1096 & ti_from_hbv > -1096,]
+
+smok3[, ti_from_hbv := abs(ti_from_hbv)]
+smok <- smok3[order(ti_from_hbv, patid), head(.SD, 1L), by = .(patid)]
+#View(smok)
+
+smok[, smok_cons_cat := fcase(
+  smokingcategoryid==0, "nonsmoker", 
+  smokingcategoryid==1, "exsmoker", 
+  smokingcategoryid==2, "lightsmoker", 
+  smokingcategoryid==3, "modsmoker", 
+  smokingcategoryid==4, "heavysmoker"
+)]
+smok <- smok[, .(patid, smok_cons_cat)]
+
+# # # # #
+# ALT
+# # # # #
+
+
+ALT_use <- ALT[patid %in% CHB_ids$patid]
+ALT_use <- CHB_ids[, .(patid, mindate_use, source_use)][ALT_use, on=.(patid), nomatch=NA]
+ALT_use <- ALT_use[patid %in% CHB_ids$patid]
+ALT_use[, date := lubridate::dmy(effectivedatetime)]
+ALT_use[, ti_from_hbv := mindate_use - date]
+ALT_use <- ALT_use[ti_from_hbv < 1096 & ti_from_hbv > -1096,]
+
+ALT_use[, ti_from_hbv := abs(ti_from_hbv)]
+ALT_use <- ALT_use[order(ti_from_hbv, patid), head(.SD, 1L), by = .(patid)]
+#View(ALT_use)
+names(ALT_use)[5] <- "ALT_value"
+
+
+# # # # #
+# AST
+# # # # #
+
+
+AST_use <- AST_julia[patid %in% CHB_ids$patid]
+AST_use <- CHB_ids[, .(patid, mindate_use, source_use)][AST_use, on=.(patid), nomatch=NA]
+AST_use <- AST_use[patid %in% CHB_ids$patid]
+AST_use[, date := lubridate::dmy(effectivedatetime)]
+AST_use[, ti_from_hbv := mindate_use - date]
+AST_use <- AST_use[ti_from_hbv < 1096 & ti_from_hbv > -1096,]
+
+AST_use[, ti_from_hbv := abs(ti_from_hbv)]
+AST_use <- AST_use[order(ti_from_hbv, patid), head(.SD, 1L), by = .(patid)]
+#View(AST_use)
+names(AST_use)[5] <- "AST_value"
+
+
+# # # # #
+# BMI
+# # # # #
+
+
+BMI_use <- BMI[patid %in% CHB_ids$patid]
+BMI_use <- CHB_ids[, .(patid, mindate_use, source_use)][BMI_use, on=.(patid), nomatch=NA]
+BMI_use <- BMI_use[patid %in% CHB_ids$patid]
+BMI_use[, date := lubridate::dmy(effectivedatetime)]
+BMI_use[, ti_from_hbv := mindate_use - date]
+BMI_use <- BMI_use[ti_from_hbv < 1096 & ti_from_hbv > -1096,]
+
+BMI_use[, ti_from_hbv := abs(ti_from_hbv)]
+BMI_use <- BMI_use[order(ti_from_hbv, patid), head(.SD, 1L), by = .(patid)]
+#View(BMI_use)
+names(BMI_use)[5] <- "BMI_value"
+
+# # # # #
+# PL
+# # # # #
+
+
+PL_use <- Platelet_count[patid %in% CHB_ids$patid]
+PL_use <- CHB_ids[, .(patid, mindate_use, source_use)][PL_use, on=.(patid), nomatch=NA]
+PL_use <- PL_use[patid %in% CHB_ids$patid]
+PL_use[, date := lubridate::dmy(effectivedatetime)]
+PL_use[, ti_from_hbv := mindate_use - date]
+PL_use <- PL_use[ti_from_hbv < 1096 & ti_from_hbv > -1096,]
+
+PL_use[, ti_from_hbv := abs(ti_from_hbv)]
+PL_use <- PL_use[order(ti_from_hbv, patid), head(.SD, 1L), by = .(patid)]
+#View(PL_use)
+names(PL_use)[5] <- "PL_value"
+
+
+# # # # #
+# drugs
+ # # # #
+
+drugs_use <- drugs_long[patid %in% CHB_ids$patid]
+drugs_use <- CHB_ids[, .(patid, mindate_use, source_use)][drugs_use, on=.(patid), nomatch=NA]
+drugs_use <- HCC_ids[, .(patid, HCC_comb_earliest_date)][drugs_use, on=.(patid), nomatch=NA]
+drugs_use <- drugs_use[patid %in% CHB_ids$patid]
+names(drugs_use)[9] <- "mindate_drugs"
+names(drugs_use)[10] <- "maxdate_drugs"
+drugs_use[, mindate_drugs_use := lubridate::dmy(mindate_drugs)]
+drugs_use[, maxdate_drugs_use := lubridate::dmy(maxdate_drugs)]
+
+drugs_use[, ti_from_hbv := mindate_drugs_use - mindate_use]
+drugs_use[, ti_to_HCC := mindate_drugs_use - HCC_comb_earliest_date]
+
+drugs_use[, drug_cat := fcase(
+  varname == "_advtreatment_ox54", "ADV",
+  varname == "_antidiabetes_ox54", "anti_diabetic",
+  varname == "_antihypertensive_ox54", "anti_hypertensive",
+  varname == "_antiviraltreatment_ox54", "anti_viral",
+  varname == "_diabetesinsulin_ox54", "insulin",
+  varname == "_diabetesmellitustreatment_ox54", "metformin_dm",
+  varname == "_diabetestrathypo_ox54", "other_dm",
+  varname == "_etvtreatment_ox54", "ETV",
+  varname == "_lamtreatment_ox54", "LAM",
+  varname == "_nsaid_ox54", "nsaid",
+  varname == "_pega2a_ox54", "intf",
+  varname == "_statin", "statin",
+  varname == "_statin_ox54", "statin",
+  varname == "_taftreatment_ox54", "TAF",
+  varname == "_tdftreatment_ox54", "TDF"
+)]
+drugs_use[ varname == "_tbvtreatment_ox54", drug_cat := NA]
+drugs_use[, antiviral_drug := ifelse(drug_cat =="ADV" | drug_cat =="anti_viral" | drug_cat =="ETV" | drug_cat =="intf" | drug_cat =="LAM" | drug_cat =="TAF" | drug_cat =="TDF" & (ti_to_HCC < 0 | is.na(ti_to_HCC)),
+                                     1,
+                                     0), by = .(patid)]
+drugs_use[, anti_dm_drug := ifelse(drug_cat =="anti_diabetic" | drug_cat =="metformin_dm" | drug_cat =="other_dm" | drug_cat == "insulin" & (ti_to_HCC < 0 | is.na(ti_to_HCC)),
+                                     1,
+                                     0), by = .(patid)]
+drugs_use[, statin_use := ifelse(drug_cat =="statin" & (ti_to_HCC < 0 | is.na(ti_to_HCC)),
+                                   1,
+                                   0), by = .(patid)]
+drugs_use[, antihypertensive_use := ifelse(drug_cat =="anti_hypertensive" & (ti_to_HCC < 0 | is.na(ti_to_HCC)),
+                                 1,
+                                 0), by = .(patid)]
+drugs_use[, nsaid_use := ifelse(drug_cat =="nsaid" & (ti_to_HCC < 0 | is.na(ti_to_HCC)),
+                                           1,
+                                           0), by = .(patid)]
+
+
+drugs_use[, drug_cat_coll := fcase(
+  drug_cat =="ADV" | drug_cat =="anti_viral" | drug_cat =="ETV" | drug_cat =="intf" | drug_cat =="LAM" |  drug_cat =="TAF" | drug_cat =="TDF", "antiviral",
+  drug_cat =="anti_diabetic" | drug_cat =="metformin_dm" | drug_cat =="other_dm" | drug_cat == "insulin", "antidiabetic",
+  drug_cat == "anti_hypertensive", "anti_hypertensive",
+  drug_cat == "nsaid", "nsaid",
+  drug_cat == "statin", "statin"
+  
+)]
+
+drugs_use <- drugs_use[antiviral_drug==1, antiviral_init := fcase(
+  ti_from_hbv < 0, "before_diagnosis",
+  ti_from_hbv > 0 & ti_from_hbv < 366, "within_1_yr",
+  ti_from_hbv >= 366 & ti_from_hbv < 731, "within_2_yr",
+  ti_from_hbv >= 731 & ti_from_hbv < 1096, "within_3_yr",
+  ti_from_hbv >= 1096, ">=4_yr"
+)]
+
+drugs_use <- drugs_use[mindate_drugs_use > as.Date("1906-01-01")] # exclude records where recorded drug use started between 1860 and 1905 
+drugs_use <- drugs_use[order(ti_from_hbv, patid), head(.SD, 1L), by = .(patid, drug_cat_coll)] # get earliest drug start date per broad drug class
+lapply(drugs_use[, 16:22], table)
+table(drugs_use$drug_cat[drugs_use$antiviral_drug==1])
+
+# setDT(drugs_use)
+# drugs_use[, nsaid_use := ifelse(nsaid_use>0, 1, nsaid_use), by = .(patid)]
+# drugs_use <- drugs_use[, nsaid_use_new := fcase(nsaid_use == 1, "yes", 
+# nsaid_use == 0, "no"), by = .(as.character(patid))]
+# drugs_use[, anti_dm_drug  := ifelse(anti_dm_drug != 0, 1, anti_dm_drug), by = "patid"]
+# drugs_use[, antiviral_drug  := ifelse(antiviral_drug != 0, 1, antiviral_drug), by = .(patid)]
+# drugs_use[, statin_use  := ifelse(statin_use != 0, 1, statin_use), by = .(patid)]
+# drugs_use[, antihypertensive_use  := ifelse(antihypertensive_use != 0, 1, antihypertensive_use), by = .(patid)]
+
+
+#View(drugs_use[order(patid), c(1, 16:22)])
+drugs_vir <- drugs_use[antiviral_drug==1, .(patid, drug_cat, antiviral_drug)]
+drugs_dm <- drugs_use[anti_dm_drug==1, .(patid, drug_cat, anti_dm_drug)]
+drugs_statin <- drugs_use[statin_use==1, .(patid, drug_cat, statin_use)]
+drugs_antihypertensive <- drugs_use[antihypertensive_use==1, .(patid, drug_cat, antihypertensive_use)]
+drugs_nsaid <- drugs_use[nsaid_use==1, .(patid, drug_cat, nsaid_use)]
+drugs_antiviral_init <- drugs_use[!is.na(antiviral_init),.(patid, drug_cat, antiviral_init)]
+
+drugs_temp <- drugs_vir[drugs_dm, on="patid", nomatch=NA]
+drugs_temp <- drugs_statin[drugs_temp, on="patid", nomatch=NA]
+drugs_temp <- drugs_nsaid[drugs_temp, on="patid", nomatch=NA]
+drugs_temp <- drugs_antihypertensive[drugs_temp, on="patid", nomatch=NA]
+drugs_temp <- drugs_temp[, .(patid, antihypertensive_use, nsaid_use, statin_use, antiviral_drug, anti_dm_drug)]
+drugs_temp[is.na(antihypertensive_use), antihypertensive_use := 0]
+drugs_temp[is.na(nsaid_use), nsaid_use := 0]
+drugs_temp[is.na(statin_use), statin_use := 0]
+drugs_temp[is.na(antiviral_drug), antiviral_drug := 0]
+drugs_temp[is.na(anti_dm_drug), anti_dm_drug := 0]
+drugs_short <- drugs_temp
+
+# columns of interest are antiviral_drug, anti_dm_drug, statin_use, antihypertensive_use, nsaid_use, and antiviral_init. These categories have been created such as they only ==1 if drug start date occurred before HCC date.
+
+```
+
+
+#minimise dataset for imputation
+``````{r, minimise, echo = FALSE, results = 'hide'}
+
+
+cohort_use <- cohort_CHB[, .(patid, age, sex, SES, ethnic_present, ethnic, FU_status, HCC_comb, HCC_comb_earliest_date, T2DM_bin,CHF_comb, HT_comb, CKD_comb, ARLD_comb, ascites_comb, autohep_comb, 
+cervas_comb, cirr_comb, ESLD_comb, IHD_comb, NAFLD_comb, nonHCC_neop_alt_comb,nonHCC_neop_alt_cat , pepUC_comb, exit_date)]
+
+cohort_use <- alc[cohort_use, on="patid", nomatch=NA]
+cohort_use <- smok[cohort_use, on="patid", nomatch=NA]
+cohort_use <- ALT_use[cohort_use, on="patid", nomatch=NA]
+cohort_use <- AST_use[cohort_use, on="patid", nomatch=NA]
+cohort_use <- BMI_use[cohort_use, on="patid", nomatch=NA]
+cohort_use <- drugs_short[cohort_use, on="patid", nomatch=NA]
+cohort_use <- drugs_antiviral_init[cohort_use, on="patid", nomatch=NA]
+cohort_use <- PL_use[cohort_use, on="patid", nomatch=NA]
+cohort_use <- cohort_use[, c(1:16, 20,28,36,41:66)]
+cohort_use <- cohort_use[, -c("codegroupid", "varname", "effectivedatetime", "date","ti_from_hbv", "i.effectivedatetime.1", "i.mindate_use.1", "i.date.1",
+"i.ti_from_hbv.1")]
+
+cohort_full <- cohort_use
+
+cohort_full <- merge(x = cohort_full, y = CHB_ids[ , .(patid, mindate_use, source_use)], by = "patid", all=T)
+cohort_full <- cohort_full[, -c("codegroupid", "varname", "effectivedatetime", "date","ti_from_hbv", "i.effectivedatetime.1", "i.mindate_use.1", "i.date.1",
+"i.ti_from_hbv.1")]
+colSums(is.na(cohort_full))
+names(cohort_full)[41] <- "mindate_use"
+names(cohort_full)[42] <- "source_use"
+cohort_full <- cohort_full[, -c("mindate_use.x", "source_use.x")]
+cohort_full[, FU_time := fcase(
+  is.na(HCC_comb_earliest_date), as.Date(exit_date) - as.Date(mindate_use),
+  !is.na(HCC_comb_earliest_date), as.Date(HCC_comb_earliest_date) - as.Date(mindate_use)
+)] # create FU time variable
+cohort_full[, FU_time := as.numeric(FU_time/365)]
+
+cohort_full[FU_time < 0, table(source_use)]# investigate people with negative FU time; 987 had "ICD" CHB diagnosis, 4 had "ICD/Read" and 13 had "read"
+cohort_full[, FU_time_pos := as.numeric(ifelse(FU_time > 0, FU_time, 0))] # create continuous FU_time variable where negative values recategorised as 0
+
+
+# View(cohort_full[FU_time < 1, ])
+
+cohort_full[FU_time_pos <= 0, table(drug_cat)] #minority of the people (26/1010) with inaccurate CHB start date have record of CHB treatment
+cohort_full[FU_time_pos <= 0, table(source_use)] # most of the people (989/1010) with inaccurate CHB start date have only an ICD code to indicate CHB
+
+
+colSums(is.na(cohort_full))
+
+cohort_full$CKD_comb[is.na(cohort_full$CKD_comb)] <- 0
+cohort_full$CKD_comb[cohort_full$CKD_comb==1] <- 1
+table(cohort_full$CKD_comb)
+
+
+cohort_full$anti_dm_drug[is.na(cohort_full$anti_dm_drug)] <- 0
+cohort_full$anti_dm_drug[cohort_full$anti_dm_drug==1] <- 1
+table(cohort_full$anti_dm_drug)
+
+cohort_full$antihypertensive_use[is.na(cohort_full$antihypertensive_use)] <- 0
+cohort_full$antihypertensive_use[cohort_full$antihypertensive_use==1] <- 1
+table(cohort_full$antihypertensive_use)
+
+cohort_full$nsaid_use[is.na(cohort_full$nsaid_use)] <- 0
+cohort_full$nsaid_use[cohort_full$nsaid_use==1] <- 1
+table(cohort_full$nsaid_use)
+
+cohort_full$statin_use[is.na(cohort_full$statin_use)] <- 0
+cohort_full$statin_use[cohort_full$statin_use==1] <- 1
+table(cohort_full$statin_use)
+
+
+cohort_full$antiviral_drug[is.na(cohort_full$antiviral_drug)] <- 0
+cohort_full$antiviral_drug[cohort_full$antiviral_drug==1] <- 1
+table(cohort_full$antiviral_drug)
+
+
+cohort_full$antiviral_init[is.na(cohort_full$antiviral_init)] <- "no_init"
+table(cohort_full$antiviral_init)
+
+cohort_full$drug_cat[is.na(cohort_full$drug_cat)] <- "no_drug"
+table(cohort_full$drug_cat)
+
+cohort_full$ethnic[cohort_full$ethnic == "not recorded"] <- NA
+cohort_full$ethnic <- as.character(cohort_full$ethnic)
+table(cohort_full$ethnic)
+
+colSums(is.na(cohort_full))
+
+
+cohort_full[, age_group := fcase(
+  age <= 25, "<=25",
+  age > 25 & age <= 35, "26 - 35",
+  age > 35 & age <= 45, "36 - 45",
+  age > 45 & age <= 55, "46 - 55",
+  age > 55 & age <= 65, "56 - 65",
+  age > 65, "> 65"
+)]
+
+cohort_full[, age_group := factor(age_group, levels = c("26 - 35", "<=25", "36 - 45","46 - 55", "56 - 65", "> 65"))]
+cohort_full[, SES := factor(SES, levels = c("3", "1", "2", "4","5"))]
+cohort_full[, ethnic := factor(ethnic, levels = c("White", "Black african","Bangladeshi","Caribbean","Chinese","Indian","Other","Other Asian","Pakistani"))]
+cohort_full[, alc_cons_cat := fcase(
+  alc_cons_cat == "non-drinker", "non-drinker",
+  alc_cons_cat == "trivial <1u/day", "trivial <1u/day",
+  alc_cons_cat == "light 1-2u/day", "light 1-2u/day",
+  alc_cons_cat == "moderate 3-6u/day" | alc_cons_cat == "heavy 7+/day", "moderate to heavy 3+/day"
+)]
+cohort_full[, alc_cons_cat := factor(alc_cons_cat, levels = c("non-drinker","trivial <1u/day","light 1-2u/day", "moderate to heavy 3+/day"))]
+cohort_full[, smok_cons_cat := fcase(
+  smok_cons_cat == "nonsmoker", "nonsmoker",
+  smok_cons_cat == "exsmoker", "exsmoker",
+  smok_cons_cat == "lightsmoker", "lightsmoker",
+  smok_cons_cat == "modsmoker"| smok_cons_cat == "heavysmoker", "mod to heavy smoker"
+  
+)]
+cohort_full[, smok_cons_cat := factor(smok_cons_cat, levels = c("nonsmoker", "exsmoker", "lightsmoker", "mod to heavy smoker"))]
+cohort_full[, BMI_cat := fcase(
+  BMI_value < 18.5, "underweight",
+  BMI_value >= 18.5 & BMI_value < 25, "healthy",
+  BMI_value >= 25 & BMI_value < 30, "overweight",
+  BMI_value >= 30, "obese"
+)]
+
+
+
+```
+
+
+
+#explore missing data patterns
+```{r, md_explore, echo=FALSE, results = 'hide'}
+
+library(mice)
+
+# md.pattern(cohort_full, plot = TRUE)
+#View(md.pattern(cohort_full))
+p <- md.pairs(cohort_full)
+flux(cohort_full)
+flux(cohort_full[,-c(22)])[, 1:3]
+colSums(is.na(cohort_full))
+lapply(cohort_full, class)
+#fluxplot(cohort_full[,-c(22)])
+
+cohort_full_num <- cohort_full[, .(BMI_value, AST_value, ALT_value, PL_value, age)]
+res <- cor(na.omit(cohort_full_num))
+round(res, 2)
+lapply(cohort_full[, .(BMI_value, AST_value, ALT_value, PL_value, age)], FUN=hist)
+list1 <- lapply(1:ncol(cohort_full_num),
+                function(col) ggplot2::qplot(cohort_full_num[[col]],
+                                             geom = "histogram",
+                                            binwideth = 1))
+                                            
+library(cowplot)
+cowplot::plot_grid(plotlist = list1)
+# BMI: normal
+# AST: right-skew
+# ALT: right-skew
+# PL: normal
+# age: normal, right-skew
+# SES: ordinal, NA
+hist(cohort_full$AST_value)
+hist(log(cohort_full$AST_value)) #log-transformation much better
+densityplot(cohort_full$AST_value)
+densityplot(log(cohort_full$AST_value)) 
+
+hist(cohort_full$ALT_value)
+hist(log(cohort_full$ALT_value)) #log-transformation much better
+densityplot(cohort_full$ALT_value)
+densityplot(log(cohort_full$ALT_value)) 
+
+# cohort_full[, alc_cons_cat := fcase(
+#   alc_cons_cat ==  "non-drinker", 1,
+#   alc_cons_cat ==  "trivial <1u/day", 2,
+#   alc_cons_cat ==  "light 1-2u/day", 3,
+#   alc_cons_cat ==  "moderate 3-6u/day", 4,
+#   alc_cons_cat ==  "heavy 7+/day", 5 
+# )]
+cohort_full_main <- cohort_full[, -c("PL_value","AST_value","ALT_value", "HCC_comb_earliest_date")]
+colSums(is.na(cohort_full_main))
+cohort_full_main <- na.omit(cohort_full_main)
+
+```
+
+
+#specify variables to be imputed and to inform imputation
+
+```{r, impuatation_formatting, echo = FALSE}
+
+# a) variables to be imputed and inform imputation
+names(cohort_full)[colSums(is.na(cohort_full)) > 0]
+allVars <- names(cohort_full)
+missVars <- names(cohort_full)[colSums(is.na(cohort_full)) > 0]
+predictorMatrix <- matrix(0, ncol = length(allVars), nrow = length(allVars))
+rownames(predictorMatrix) <- allVars
+colnames(predictorMatrix) <- allVars
+
+# b) variables to inform imputation
+imputerVars <- c("antihypertensive_use", "nsaid_use","statin_use","antiviral_init","anti_dm_drug", "age", "sex", 
+            "HCC_comb", "CHF_comb", "HT_comb", "CKD_comb", "ARLD_comb", "ascites_comb", "cervas_comb", "cirr_comb",
+            "ESLD_comb", "IHD_comb","NAFLD_comb","nonHCC_neop_comb","pepUC_comb","PL_value",  "BMI_value", "AST_value", "ALT_value", "smok_cons_cat", "alc_cons_cat", "SES", "ethnic"  )
+imputerVars <- intersect(unique(imputerVars), allVars)
+imputerVars
+imputerMatrix <- predictorMatrix
+imputerMatrix[, imputerVars] <- 1
+# imputerMatrix
+
+
+# c) specify variables to be imputed 
+imputedOnlyVars <- c("PL_value",  "BMI_value", "AST_value", "ALT_value", "smok_cons_cat", "alc_cons_cat", "SES", "ethnic" )
+imputedVars <- intersect(unique(c(imputedOnlyVars, imputerVars)), missVars)
+imputedMatrix <- predictorMatrix
+imputedMatrix[imputedVars,] <- 1
+# imputedMatrix
+```
+
+
+# impute 
+```{r, impuatation_1, echo = FALSE}
+# d) construct predictor matrix
+predictorMatrix <- imputerMatrix * imputedMatrix
+diag(predictorMatrix) <- 0
+# predictorMatrix
+cohort_full[, ethnic := as.factor(ethnic)]
+cohort_full[, smok_cons_cat := as.factor(smok_cons_cat)]
+cohort_full[, alc_cons_cat := as.character(alc_cons_cat)]
+cohort_full[, alc_cons_cat := as.factor(alc_cons_cat)]
+cohort_full[, SES := as.character(SES)]
+cohort_full[, SES := as.factor(SES)]
+
+
+
+# e) dry MICE
+dryMice <- mice(data = cohort_full, m = 1, predictorMatrix = predictorMatrix, maxit = 0)
+dryMice$loggedEvents
+summary(dryMice)
+predictorMatrix <- dryMice$predictorMatrix
+# imputerVars <- colnames(predictorMatrix)[colSums(predictorMatrix) > 0]
+# imputerVars
+# imputedVars <- colnames(predictorMatrix)[rowSums(predictorMatrix) > 0]
+# imputedVars
+pred_Matrix <- make.predictorMatrix(cohort_full, blocks = make.blocks(cohort_full))
+setdiff(imputerVars, imputedVars) # imputers that are complete
+intersect(imputerVars, imputedVars) # imputers with missingness
+setdiff(imputedVars, imputerVars) # imputed-only variables withuot being imputers
+setdiff(missVars, imputedVars) # variables with missingness that are not imputed
+predictorMatrix[rowSums(predictorMatrix) > 0, colSums(predictorMatrix) > 0] # Relevant part of predictormatrix
+meth <- dryMice$meth
+
+# f) specify methods for variables to be imputed
+meth["PL_value"] <- "norm"
+meth["BMI_value"] <- "norm"
+meth["AST_value"] <- "pmm"
+meth["ALT_value"] <- "pmm"
+meth["SES"] <- "polr"
+meth["alc_cons_cat"] <- "polyreg"
+meth["smok_cons_cat"] <- "polyreg"
+meth["ethnic"] <- "polyreg"
+
+# g) rerun dry MICE
+dryMice2 <- mice(data = cohort_full, meth = meth, m = 10, predictorMatrix = predictorMatrix, maxit = 0)
+dryMice$loggedEvents
+summary(dryMice2)
+dryMice2$visitSequence
+dryMice2$post
+stripplot(dryMice2, BMI_value~.imp, pch = 20, cex = 2)
+stripplot(dryMice2, PL_value~.imp, pch = 20, cex = 2)
+stripplot(dryMice2, AST_value~.imp, pch = 20, cex = 2)
+stripplot(dryMice2, ALT_value~.imp, pch = 20, cex = 2)
+attributes(dryMice2)
+dryMice2$pred
+
+
+```
+
+
+# Cox PH modelling - complete-case analysis - univar
+```{r CoxPH_normal_univar, include=FALSE}
+cohort_full_main[, antiviral_init := factor(antiviral_init, levels = c("no_init", "before_diagnosis", "within_1_yr", "within_2_yr", "within_3_yr", ">=4_yr"))]
+cohort_full_main[, antiviral_bin := ifelse(antiviral_init == "no_init", 0, 1) ]
+cohort_full_main[, cvd_collapse := ifelse(CHF_comb == 1 | HT_comb == 1 | cervas_comb == 1 | IHD_comb == 1, 1, 0 
+)]
+
+
+#PICK UP HERE, rerun univar + multivar models and create new tableone i.e. Table 3. Also inspect 1010 patients excluded from imputed analysis
+
+univar_vars <- c("age_group", "sex", "SES", "ethnic", "smok_cons_cat", "alc_cons_cat", "BMI_cat",
+  "antiviral_bin", "T2DM_bin", "CHF_comb", "HT_comb", "CKD_comb","ARLD_comb","ascites_comb", "cvd_collapse",
+  "cervas_comb", "cirr_comb", "ESLD_comb ",  "IHD_comb", "NAFLD_comb","nonHCC_neop_alt_comb", "pepUC_comb",
+ "anti_dm_drug", "antihypertensive_use", "nsaid_use", "statin_use")
+
+cox_model_list <- map(paste0(univar_vars),
+                      ~coxph(reformulate(.x, "Surv(FU_time_pos,HCC_comb)"), data = cohort_full_main[FU_time_pos > 0,]))
+tidy_output_list <- map(cox_model_list, broom::tidy, conf.int = T, conf.level = 0.95, exponentiate = T)
+tidy_output_list
+
+tidy_output_list <- do.call(rbind.data.frame, tidy_output_list)
+write.csv(tidy_output_list, "univar_main_CC.csv")
+
+```
+
+
+# Cox PH modelling - complete-case analysis, NON-HCC CANCERS REMOVED   - univar
+```{r CoxPH_normal_univar, include=FALSE}
+cohort_full_main[, antiviral_init := factor(antiviral_init, levels = c("no_init", "before_diagnosis", "within_1_yr", "within_2_yr", "within_3_yr", ">=4_yr"))]
+
+univar_vars <- c("age_group", "sex", "SES", "ethnic", "smok_cons_cat", "alc_cons_cat", "BMI_cat",
+                 "antiviral_bin", "T2DM_bin", "CHF_comb", "HT_comb", "CKD_comb","ARLD_comb","ascites_comb",  "cvd_collapse",
+                 "cervas_comb", "cirr_comb", "ESLD_comb ",  "IHD_comb", "NAFLD_comb", "pepUC_comb",
+                 "anti_dm_drug", "antihypertensive_use", "nsaid_use", "statin_use")
+
+cox_model_list_sens <- map(paste0(univar_vars),
+                      ~coxph(reformulate(.x, "Surv(FU_time_pos,HCC_comb)"), data = cohort_full_main[FU_time_pos > 0 & nonHCC_neop_alt_comb==0,]))
+tidy_output_list_sens <- map(cox_model_list_sens, broom::tidy, conf.int = T, conf.level = 0.95, exponentiate = T)
+tidy_output_list_sens
+
+tidy_output_list_sens <- do.call(rbind.data.frame, tidy_output_list_sens)
+write.csv(tidy_output_list_sens, "univar_main_CC_NOnonHCC.csv")
+
+```
+
+
+# Cox PH modelling - complete-case analysis, multivar
+```{r CoxPH_normal, include=FALSE}
+
+cohort_full_main[, antiviral_init := factor(antiviral_init, levels = c( "no_init","before_diagnosis","within_1_yr","within_2_yr","within_3_yr",">=4_yr" ))]
+
+mod1_main <- coxph(Surv(FU_time_pos,HCC_comb) 
+~ age_group + sex + SES + ethnic + smok_cons_cat + alc_cons_cat + BMI_cat + antiviral_bin + 
+  T2DM_bin + CKD_comb + ARLD_comb + ascites_comb + cvd_collapse + cirr_comb + ESLD_comb  + NAFLD_comb + nonHCC_neop_alt_comb + pepUC_comb + 
+  anti_dm_drug + antihypertensive_use + nsaid_use + statin_use
+, data = cohort_full_main[FU_time_pos > 0,])
+
+mod1_main_summary <- summary(mod1_main)
+mod1_main_summary
+write.csv(mod1_main_summary[7:8], "multivar_main_CC.csv")
+
+
+
+              
+```
+
+# Cox PH modelling - complete-case analysis, NO NON-HCC CANCERS, multivar
+```{r CoxPH_normal, include=FALSE}
+
+cohort_full_main[, antiviral_init := factor(antiviral_init, levels = c( "no_init","before_diagnosis","within_1_yr","within_2_yr","within_3_yr",">=4_yr" ))]
+
+mod1_main_sens <- coxph(Surv(FU_time_pos,HCC_comb) ~ age_group + sex + SES + ethnic + smok_cons_cat + alc_cons_cat + BMI_cat + antiviral_bin + 
+  T2DM_bin + CKD_comb + ARLD_comb + ascites_comb + cvd_collapse + cirr_comb + ESLD_comb  + NAFLD_comb + pepUC_comb + 
+  anti_dm_drug + antihypertensive_use + nsaid_use + statin_use
+                     , data = cohort_full_main[FU_time_pos > 0 & nonHCC_neop_alt_comb == 0,])
+mod1_main_sens_summary <- summary(mod1_main_sens)
+mod1_main_sens_summary
+write.csv(mod1_main_sens_summary[7:8], "multvar_main_CC_NOnonHCC.csv")
+
+
+
+              
+```
+
+
+# Cox PH modelling - imputed data analysis - univar
+```{r CoxPH_normal_univar, include=FALSE}
+complete_dryMice2 <- setDT(complete(dryMice2))
+complete_dryMice2[, FU_time_pos := ifelse(FU_time_pos > 20, 20, FU_time_pos)]  # recode FU time to cap at 20 yers if greater
+complete_dryMice2[, BMI_cat := fcase(
+  BMI_value < 18.5, "underweight",
+  BMI_value >= 18.5 & BMI_value < 25, "healthy",
+  BMI_value >= 25 & BMI_value < 30, "overweight",
+  BMI_value >= 30, "obese"
+)]
+complete_dryMice2[, antiviral_init := factor(antiviral_init, levels = c( "no_init","before_diagnosis","within_1_yr","within_2_yr","within_3_yr",">=4_yr" ))]
+
+complete_dryMice2[, SES := factor(SES, levels = c("3", "1", "2", "4", "5"))] # change SES baseline
+
+complete_dryMice2[, alc_cons_cat := factor(alc_cons_cat, levels = c("non-drinker","trivial <1u/day","light 1-2u/day", "moderate to heavy 3+/day"))] # change baseline
+complete_dryMice2[, smok_cons_cat := factor(smok_cons_cat, levels = c("nonsmoker", "exsmoker", "lightsmoker", "mod to heavy smoker"))] # change baseline
+
+complete_dryMice2 <-complete_dryMice2  %>% 
+  mutate(ALT_quint_log = as.factor(ntile(log(ALT_value), 5))) %>%
+  mutate(AST_quint_log = as.factor(ntile(log(AST_value), 5))) %>%
+  mutate(PL_quint = as.factor(ntile(PL_value, 5)))
+
+setDT(complete_dryMice2)[, ALT_quint_log := factor(ALT_quint_log, levels = c("3", "1", "2", "4", "5"))] # change baseline group for ALT quintiles
+complete_dryMice2[, AST_quint_log := factor(AST_quint_log, levels = c("3", "1", "2", "4", "5"))] #as above for AST  
+complete_dryMice2[, PL_quint := factor(PL_quint, levels = c("3", "1", "2", "4", "5"))] # as above for PL
+
+complete_dryMice2[, antiviral_bin := ifelse(antiviral_init == "no_init", "no_treatment", "treated")]
+complete_dryMice2[, cvd_collapse := ifelse(CHF_comb == 1 | HT_comb == 1 | cervas_comb == 1 | IHD_comb == 1, 1, 0 
+)]
+
+
+univar_vars <- c("age_group", "sex", "SES", "ethnic", "smok_cons_cat", "alc_cons_cat", "BMI_cat",
+                 "antiviral_bin", "T2DM_bin", "CHF_comb", "HT_comb", "CKD_comb","ARLD_comb","ascites_comb",  "cvd_collapse",
+                 "cervas_comb", "cirr_comb", "ESLD_comb ",  "IHD_comb", "NAFLD_comb","nonHCC_neop_alt_comb", "pepUC_comb",
+                 "anti_dm_drug", "antihypertensive_use", "nsaid_use", "statin_use")
+
+
+cox_model_list <- map(paste0(univar_vars),
+                      ~coxph(reformulate(.x, "Surv(FU_time_pos,HCC_comb)"), data = complete_dryMice2[FU_time_pos > 0,]))
+tidy_output_list <- map(cox_model_list, broom::tidy, conf.int = T, conf.level = 0.95, exponentiate = T)
+tidy_output_list
+
+tidy_output_list <- do.call(rbind.data.frame, tidy_output_list)
+write.csv(tidy_output_list, "univar_imputed.csv")
+
+```
+
+
+# Cox PH modelling - imputed data analysis - multivar
+```{r CoxPH_imp, include=FALSE}
+
+
+
+
+mod1_imp_full <- with(complete_dryMice2[FU_time_pos > 0,], 
+                      coxph(Surv(FU_time_pos,HCC_comb) ~ age_group + sex + SES + ethnic + smok_cons_cat + alc_cons_cat + BMI_cat +
+                      antiviral_bin + T2DM_bin + CKD_comb + ARLD_comb + ascites_comb + cvd_collapse + cirr_comb +
+                      ESLD_comb  +  NAFLD_comb + nonHCC_neop_alt_comb + pepUC_comb + 
+                      anti_dm_drug + antihypertensive_use + nsaid_use + statin_use, 
+                      data = complete_dryMice2[FU_time_pos > 0,]))
+
+mod1_imp_summary <- summary(mod1_imp_full)
+mod1_imp_summary
+
+
+#write.csv(mod1_imp_summary[[7]], "mod1_imp_p.csv")
+#write.csv(mod1_imp_summary[[8]], "mod1_imp_95CI.csv")
+write.csv(mod1_imp_summary[7:8], "multivar_imputed.csv")
+
+              
+```
+
+
+# Cox PH modelling - imputed data analysis , NO NON-HCC CANCERS - multivar
+```{r CoxPH_imp, include=FALSE}
+
+
+mod1_imp_full_sens <- with(complete_dryMice2[FU_time_pos > 0,], coxph(Surv(FU_time_pos,HCC_comb) ~ age_group + sex + SES + ethnic + smok_cons_cat + alc_cons_cat + BMI_cat + antiviral_bin + 
+  T2DM_bin + CKD_comb + ARLD_comb + ascites_comb + cvd_collapse + cirr_comb + ESLD_comb  + NAFLD_comb + pepUC_comb + 
+  anti_dm_drug + antihypertensive_use + nsaid_use + statin_use
+                                                                 , data = complete_dryMice2[FU_time_pos > 0 & nonHCC_neop_alt_comb == 0,]))
+
+mod1_imp_summary_sens <- summary(mod1_imp_full_sens)
+mod1_imp_summary_sens
+
+
+#write.csv(mod1_imp_summary_sens[[7]], "mod1_imp_p_sens.csv")
+#write.csv(mod1_imp_summary_sens[[8]], "mod1_imp_95CI_sens.csv")
+write.csv(mod1_imp_summary_sens[7:8], "multvar_imputed_NOnonHCC.csv")
+
+              
+```
+
+
+
+# Cox PH modelling - imputed data analysis; add ALT, AST and PL
+
+```{r CoxPH_imp_further, include=FALSE}
+
+
+
+# complete_dryMice2[, levels(c("ALT_quint_log", "AST_quint_log", "PL_quint"))]
+# 
+# aggregate(log(complete_dryMice2$ALT_value), list(complete_dryMice2$ALT_quint_log), mean)
+# aggregate(log(complete_dryMice2$AST_value), list(complete_dryMice2$AST_quint_log), mean)
+# aggregate(complete_dryMice2$PL_value, list(complete_dryMice2$PL_quint), mean)
+
+
+
+
+mod1_imp_full_further <- with(complete_dryMice2[FU_time_pos > 0,], coxph(Surv(FU_time_pos,HCC_comb) ~ age_group + sex + SES + ethnic + smok_cons_cat + alc_cons_cat + BMI_cat + antiviral_bin + 
+  T2DM_bin + CKD_comb + ARLD_comb + ascites_comb + cvd_collapse + cirr_comb + ESLD_comb  + NAFLD_comb + nonHCC_neop_alt_comb + pepUC_comb + 
+  anti_dm_drug + antihypertensive_use + nsaid_use + statin_use + ALT_quint_log + AST_quint_log + PL_quint
+                                                , data = complete_dryMice2[FU_time_pos > 0,]))
+
+
+mod1_imp_further_summary <- summary(mod1_imp_full_further)
+mod1_imp_further_summary 
+
+#write.csv(mod1_imp_further_summary[[7]], "mod1_imp_further_p.csv")
+#write.csv(mod1_imp_further_summary[[8]], "mod1_imp_further_95CI.csv")
+write.csv(mod1_imp_further_summary[7:8], "multvar_imputed_additional_biomarkers.csv")
+
+              
+```
+
+
+# baseline characteristics table - original dataset
+```{r baseline_demog,  include=FALSE}
+
+cohort_full[, SES_table1 := fcase(
+  SES == "1", "1",
+  SES == "2", "2",
+  SES == "3", "3",
+  SES == "4", "4",
+  SES == "5", "5",
+  is.na(SES), "miss"
+)]
+
+cohort_full[, any_CHB_lab := fcase(
+  source_use == "ICE/lab" | source_use == "read/lab" | source_use == "lab", "yes", 
+  source_use != "ICE/lab" & source_use != "read/lab" & source_use != "lab", "no"
+)]
+
+cohort_full[, any_CHB_Read := fcase(
+  source_use == "ICD/read" | source_use == "read" | source_use == "read/lab", "yes", 
+  source_use != "ICD/read" & source_use != "read" & source_use != "read/lab", "no"
+)]
+
+cohort_full[, any_CHB_ICD := fcase(
+  source_use == "ICD" | source_use == "ICD/lab" | source_use == "ICD/read", "yes", 
+  source_use != "ICD" & source_use != "ICD/lab" & source_use != "ICD/read", "no"
+)]
+
+cohort_full[, antiviral_bin := ifelse(antiviral_init == "no_init", "no_treatment", "treated")]
+cohort_full[, cvd_collapse := ifelse(CHF_comb == 1 | HT_comb == 1 | cervas_comb == 1 | IHD_comb == 1, 1, 0 
+)]
+
+
+vars <- c("age","age_group","sex","SES","SES_table1","ethnic","HCC_comb","smok_cons_cat","alc_cons_cat","BMI_value","BMI_cat",
+          "antiviral_bin",
+          "T2DM_bin","CHF_comb","HT_comb","CKD_comb","ARLD_comb","ascites_comb","autohep_comb", "cvd_collapse",
+          "cervas_comb","cirr_comb","ESLD_comb","IHD_comb","NAFLD_comb","nonHCC_neop_alt_comb","nonHCC_neop_alt_cat",
+          "pepUC_comb",
+          "anti_dm_drug","antihypertensive_use","nsaid_use","statin_use",
+          "source_use","any_CHB_ICD", "any_CHB_Read", "any_CHB_lab", "FU_time_pos")
+
+catVars <- c("age_group","sex","SES","SES_table1","ethnic","HCC_comb","smok_cons_cat","alc_cons_cat","BMI_cat",
+          "antiviral_bin",
+          "T2DM_bin","CHF_comb","HT_comb","CKD_comb","ARLD_comb","ascites_comb","autohep_comb", "cvd_collapse",
+          "cervas_comb","cirr_comb","ESLD_comb","IHD_comb","NAFLD_comb","nonHCC_neop_alt_comb","nonHCC_neop_alt_cat",
+          "pepUC_comb",
+          "anti_dm_drug","antihypertensive_use","nsaid_use","statin_use",
+          "source_use","any_CHB_ICD", "any_CHB_Read", "any_CHB_lab")
+
+table1_og <- CreateTableOne(vars = vars, data = cohort_full, factorVars =catVars)
+table1_og <- print(table1_og, showAllLevels = TRUE)
+write.csv(table1_og, file = "table1_og.csv")
+
+table1_og_HCC <- CreateTableOne(vars = vars, strata = "HCC_comb", data = cohort_full, factorVars =catVars)
+table1_og_HCC <- print(table1_og_HCC, showAllLevels = TRUE)
+write.csv(table1_og_HCC, file = "table1_og_HCC.csv")
+
+table1_og_SES <- CreateTableOne(vars = vars, strata = "SES_table1", data = cohort_full, factorVars =catVars)
+table1_og_SES <- print(table1_og_SES, showAllLevels = TRUE)
+write.csv(table1_og_SES, file = "table1_og_SES.csv")
+
+table1_og_ethnic <- CreateTableOne(vars = vars, strata = "SES_table1", data = cohort_full, factorVars =catVars)
+table1_og_ethnic <- print(table1_og_ethnic, showAllLevels = TRUE)
+write.csv(table1_og_ethnic, file = "table1_og_ethnic.csv")
+
+
+
+```
+
+
+
+
+# baseline characteristics table - imputed dataset
+```{r baseline_demog_imp,  include=FALSE}
+
+complete_dryMice2[, any_CHB_lab := fcase(
+  source_use == "ICE/lab" | source_use == "read/lab" | source_use == "lab", "yes", 
+  source_use != "ICE/lab" & source_use != "read/lab" & source_use != "lab", "no"
+)]
+
+complete_dryMice2[, any_CHB_Read := fcase(
+  source_use == "ICD/read" | source_use == "read" | source_use == "read/lab", "yes", 
+  source_use != "ICD/read" & source_use != "read" & source_use != "read/lab", "no"
+)]
+
+complete_dryMice2[, any_CHB_ICD := fcase(
+  source_use == "ICD" | source_use == "ICD/lab" | source_use == "ICD/read", "yes", 
+  source_use != "ICD" & source_use != "ICD/lab" & source_use != "ICD/read", "no"
+)]
+complete_dryMice2[, cvd_collapse := ifelse(CHF_comb == 1 | HT_comb == 1 | cervas_comb == 1 | IHD_comb == 1, 1, 0 
+)]
+
+vars <- c("age","age_group","sex","SES","ethnic","HCC_comb","smok_cons_cat","alc_cons_cat","BMI_value","BMI_cat",
+"drug_cat","antiviral_bin","antihypertensive_use","nsaid_use","statin_use",
+"T2DM_bin","anti_dm_drug","CHF_comb","HT_comb","CKD_comb","ARLD_comb","ascites_comb","autohep_comb",  "cvd_collapse",
+"cervas_comb","cirr_comb","ESLD_comb","IHD_comb","NAFLD_comb","nonHCC_neop_alt_comb","nonHCC_neop_alt_cat",
+"pepUC_comb","source_use","any_CHB_ICD", "any_CHB_Read", "FU_time", 
+"ALT_value", "ALT_quint_log","AST_value", "AST_quint_log","PL_value","PL_quint")
+
+
+catVars <- c("age_group","sex","SES","ethnic","HCC_comb","smok_cons_cat","alc_cons_cat","BMI_cat", 
+"drug_cat","antiviral_bin","antihypertensive_use","nsaid_use","statin_use",
+"T2DM_bin","anti_dm_drug","CHF_comb","HT_comb","CKD_comb","ARLD_comb","ascites_comb","autohep_comb",  "cvd_collapse",
+"cervas_comb","cirr_comb","ESLD_comb","IHD_comb","NAFLD_comb","nonHCC_neop_alt_comb","nonHCC_neop_alt_cat",
+"pepUC_comb","source_use","any_CHB_ICD", "any_CHB_Read", "FU_time_pos",
+"ALT_quint_log", "AST_quint_log", "PL_quint")
+
+table1_imp <- CreateTableOne(vars = vars, data = complete_dryMice2[FU_time_pos > 0,], factorVars =catVars)
+table1_imp <- print(table1_imp, nonnormal = c("ALT_value", "AST_value"))
+write.csv(table1_imp, file = "table1_imp.csv")
+
+table1_imp_HCC <- CreateTableOne(vars = vars, strata = "HCC_comb", data = complete_dryMice2[FU_time_pos > 0,], factorVars = catVars)
+table1_imp_HCC <- print(table1_imp_HCC, nonnormal = c("ALT_value", "AST_value"))
+write.csv(table1_imp_HCC, file = "table1_imp_HCC.csv")
+
+
+```
+
+
+
+# baseline characteristics table - complete case subset
+```{r baseline_demog_imp,  include=FALSE}
+
+
+cohort_full_main[, any_CHB_lab := fcase(
+  source_use == "ICE/lab" | source_use == "read/lab" | source_use == "lab", "yes", 
+  source_use != "ICE/lab" & source_use != "read/lab" & source_use != "lab", "no"
+)]
+
+cohort_full_main[, any_CHB_Read := fcase(
+  source_use == "ICD/read" | source_use == "read" | source_use == "read/lab", "yes", 
+  source_use != "ICD/read" & source_use != "read" & source_use != "read/lab", "no"
+)]
+
+cohort_full_main[, any_CHB_ICD := fcase(
+  source_use == "ICD" | source_use == "ICD/lab" | source_use == "ICD/read", "yes", 
+  source_use != "ICD" & source_use != "ICD/lab" & source_use != "ICD/read", "no"
+)]
+
+cohort_full_main[, antiviral_bin := ifelse(antiviral_init == "no_init", "no_treatment", "treated")]
+
+
+vars <- c("FU_time","age","age_group","sex","SES","ethnic","HCC_comb","smok_cons_cat","alc_cons_cat","BMI_value","BMI_cat", 
+"antiviral_bin",
+"T2DM_bin","CHF_comb","HT_comb","CKD_comb","ARLD_comb","ascites_comb","autohep_comb",  "cvd_collapse",
+"cervas_comb","cirr_comb","ESLD_comb","IHD_comb","NAFLD_comb","nonHCC_neop_alt_comb","nonHCC_neop_alt_cat","pepUC_comb",
+"anti_dm_drug","antihypertensive_use","nsaid_use","statin_use",
+"source_use","any_CHB_ICD", "any_CHB_Read")
+
+
+catVars <- c("age_group","sex","SES","ethnic","HCC_comb","smok_cons_cat","alc_cons_cat","BMI_cat", 
+"drug_cat","antiviral_bin","antihypertensive_use","nsaid_use","statin_use",
+"T2DM_bin","anti_dm_drug","CHF_comb","HT_comb","CKD_comb","ARLD_comb","ascites_comb","autohep_comb",  "cvd_collapse",
+"cervas_comb","cirr_comb","ESLD_comb","IHD_comb","NAFLD_comb","nonHCC_neop_alt_comb","nonHCC_neop_alt_cat",
+"pepUC_comb","source_use","any_CHB_ICD", "any_CHB_Read", "FU_time_pos")
+
+table1_CC <- CreateTableOne(vars = vars, data = cohort_full_main[FU_time_pos > 0,], factorVars =catVars)
+table1_CC <- print(table1_CC)
+write.csv(table1_CC, file = "table1_CC.csv")
+
+table1_CC_HCC <- CreateTableOne(vars = vars, strata = "HCC_comb", data = cohort_full_main[FU_time_pos > 0,], factorVars = catVars)
+table1_CC_HCC <- print(table1_CC_HCC)
+write.csv(table1_CC_HCC, file = "table1_CC_HCC.csv")
+
+
+```
+
+
+
+
+## table with means and medians for ALT, AST and PL quintiles
+```{r biomarker_desc_stats, include=FALSE}
+
+# ALT
+print(setDT(complete_dryMice2[FU_time_pos > 0,])[, .N, by = ALT_quint_log])
+print(setDT(complete_dryMice2[FU_time_pos > 0,])[, mean(log(ALT_value), na.rm = TRUE), by = ALT_quint_log])
+print(setDT(complete_dryMice2[FU_time_pos > 0,])[, sd(log(ALT_value), na.rm = TRUE), by = ALT_quint_log])
+
+#AST
+print(setDT(complete_dryMice2[FU_time_pos > 0,])[, .N, by = AST_quint_log])
+print(setDT(complete_dryMice2[FU_time_pos > 0,])[, mean(log(AST_value), na.rm = TRUE), by = AST_quint_log])
+print(setDT(complete_dryMice2[FU_time_pos > 0,])[, sd(log(AST_value), na.rm = TRUE), by = AST_quint_log])
+
+
+
+#PL
+print(setDT(complete_dryMice2[FU_time_pos > 0,])[, .N, by = PL_quint])
+print(setDT(complete_dryMice2[FU_time_pos > 0,])[, mean(log(PL_value), na.rm = TRUE), by = PL_quint])
+print(setDT(complete_dryMice2[FU_time_pos > 0,])[, sd(log(PL_value), na.rm = TRUE), by = PL_quint])
+
+
+#univariable ALT
+setDT(complete_dryMice2)[, ALT_quint_log := factor(ALT_quint_log, levels = c("3", "1", "2", "4", "5"))] # change baseline group for ALT quintiles
+complete_dryMice2[, AST_quint_log := factor(AST_quint_log, levels = c("3", "1", "2", "4", "5"))] #as above for AST  
+complete_dryMice2[, PL_quint := factor(PL_quint, levels = c("3", "1", "2", "4", "5"))] # as above for PL
+
+
+univar_vars <- c("ALT_quint_log", "AST_quint_log", "PL_quint")
+
+
+cox_model_list_biomarker <- map(paste0(univar_vars),
+                      ~coxph(reformulate(.x, "Surv(FU_time_pos,HCC_comb)"), data = complete_dryMice2[FU_time_pos > 0,]))
+tidy_output_list_biomarker <- map(cox_model_list_biomarker, broom::tidy, conf.int = T, conf.level = 0.95, exponentiate = T)
+tidy_output_list_biomarker
+
+tidy_output_list_biomarker <- do.call(rbind.data.frame, tidy_output_list_biomarker)
+write.csv(tidy_output_list, "univar_imputed_biomarkers.csv")
+
+
+```
+
+# incidence rates 
+```{r  incidence_rates, include=FALSE}
+
+incidence_rates <- function(data, variable){ # function to compute IRs, SEs and 95% CIs
+options(digits=4)
+print(data[, .(IR = (sum(length(which(complete_dryMice2$HCC_comb==1)))/sum(FU_time_pos)) * 1000, 
+               LCI = ((sum(length(which(complete_dryMice2$HCC_comb==1)))/sum(FU_time_pos)) * 1000) / exp(1.96 / (sqrt(sum(length(which(complete_dryMice2$HCC_comb==1)))))),
+               UCI = ((sum(length(which(complete_dryMice2$HCC_comb==1)))/sum(FU_time_pos)) * 1000) * exp(1.96 / (sqrt(sum(length(which(complete_dryMice2$HCC_comb==1)))))),
+               IR_SE = (sqrt(sum(length(which(complete_dryMice2$HCC_comb==1)))) / sum(FU_time_pos)) * 1000
+               ), by = variable])  
+  
+}
+
+
+
+incidence_rates(complete_dryMice2, "sex") # function works
+
+catVars <- c("age_group","sex","SES","ethnic","HCC_comb","smok_cons_cat","alc_cons_cat","BMI_cat", 
+"drug_cat","antiviral_bin","antihypertensive_use","nsaid_use","statin_use",
+"T2DM_bin","anti_dm_drug","CHF_comb","HT_comb","CKD_comb","ARLD_comb","ascites_comb","autohep_comb",  "cvd_collapse",
+"cervas_comb","cirr_comb","ESLD_comb","IHD_comb","NAFLD_comb","nonHCC_neop_alt_comb","nonHCC_neop_alt_cat",
+"pepUC_comb","source_use","any_CHB_ICD", "any_CHB_Read", "FU_time_pos",
+"ALT_quint_log", "AST_quint_log", "PL_quint") # list of vars across which we'll apply function 
+
+
+for (i in catVars){ # PICK UP HERE, confirm with Tina, not sure if I should report incidence rates since they seem high due to short follow-up periods
+  incidence_rates(complete_dryMice2, i)
+}
+
+
+
+```
+
+
+
+
+
+# investigate  FU
+```{r zero_fu, include=FALSE}
+
+colnames(cohort_use)
+colnames(cohort_full)
+View(cohort_full[, .(patid, mindate_use, exit_date, FU_time_pos)])
+View(complete_dryMice2[, .(patid, mindate_use, exit_date, FU_time_pos)])
+
+hist(complete_dryMice2$FU_time_pos, breaks  = 20)
+hist_FU <- ggplot(complete_dryMice2, aes(x = FU_time_pos)) +
+  geom_histogram(aes(color = as.factor(HCC_comb), fill = as.factor(HCC_comb)),
+                 position = "identity", bins = 20, alpha = 0.4) 
+
+complete_dryMice2[HCC_comb == 1, summary(FU_time_pos)]
+complete_dryMice2[HCC_comb == 1, table(FU_time_pos <= 1)]
+
+
+# Supplementary table 3
+complete_dryMice2_copy <- complete_dryMice2
+
+complete_dryMice2_copy[, FU_time := fcase(
+  HCC_comb == 0, as.Date(exit_date) - as.Date(mindate_use),
+  HCC_comb == 1, as.Date(HCC_comb_earliest_date) - as.Date(mindate_use)
+)] # create FU time variable
+complete_dryMice2_copy[, FU_time := as.numeric(FU_time/365)] # convert FU time to years
+
+
+
+complete_dryMice2_copy[, FU_cat := fcase(
+  FU_time < 0 & HCC_comb == 0, "exit_preceeds_CHB_diagnosis",
+  FU_time < 0 & HCC_comb == 1, "HCC_preceeds_CHB_diagnosis",
+  FU_time == 0 & HCC_comb == 0, "exit_equates_CHB_diagnosis",
+  FU_time == 0 & HCC_comb == 1, "HCC_equates_CHB_diagnosis",
+  FU_time > 0, "exit/HCC_follows_CHB_diagnosis"
+)] # create categories which indicate temporality of participants in terms of cohort entry, censoring or HCC development
+
+
+vars <- c("FU_time_pos","source_use","FU_cat")
+catVars <- c("source_use","FU_cat")
+
+Supp3_tab_HCC <- CreateTableOne(vars = vars, strata = "FU_cat", data = complete_dryMice2_copy, factorVars = catVars) #create supp table 3
+Supp3_tab_HCC <- print(Supp3_tab_HCC) #print supp table 3
+complete_dryMice2_copy[FU_time > 0, .(mean_FU = mean(FU_time), SD = sd(FU_time), n = length(FU_time)), by = source_use]
+complete_dryMice2_copy[FU_time > 0, .(median_FU = median(FU_time), IQR = IQR(FU_time), n = length(FU_time)), by = source_use]
+
+
+#View(complete_dryMice2_copy[is.na(FU_cat), .(patid, FU_cat, FU_time, FU_time_pos, mindate_use, exit_date, HCC_comb, HCC_comb_earliest_date)])
+
+
+                      
+
+test <- cohort_full[FU_time > 0]
+test2 <- cohort_full_main[FU_time > 0]
+
+
+```
+
+
+
+mu
+# FOR REVIEWER - propoensity score added
+```{r CoxPH_imp, include=FALSE}
+
+complete_dryMice2[, antiviral_bin := ifelse(antiviral_init == "no_init", 0, 1) ]
+
+
+prop_model <- glm(antiviral_bin ~ age_group + sex + SES + ethnic + BMI_cat + 
+  T2DM_bin + ARLD_comb + cirr_comb + ESLD_comb + NAFLD_comb, family = binomial, data = complete_dryMice2[FU_time_pos > 0,]) # calculate propensity scores using logistic regression
+propensity_scores <- predict(prop_model, type = "response")
+
+
+mod_propensity_scores <- with(complete_dryMice2[FU_time_pos > 0,], coxph(Surv(FU_time_pos,HCC_comb) ~ propensity_scores + antiviral_bin 
+                                                                 , data = complete_dryMice2[FU_time_pos > 0,]))
+
+mod_propensity_scores <- summary(mod_propensity_scores)
+mod_propensity_scores 
+
+
+
+# mod 1: antiviral therapy, no propensity score (or factors included in it)
+
+sens_Na_no_prop <- with(complete_dryMice2[FU_time_pos > 0,], 
+                      coxph(Surv(FU_time_pos,HCC_comb) ~ smok_cons_cat + alc_cons_cat + 
+                              antiviral_bin + CKD_comb + ascites_comb + cvd_collapse + 
+                              nonHCC_neop_alt_comb + pepUC_comb + 
+                              anti_dm_drug + antihypertensive_use + nsaid_use + statin_use, 
+                            data = complete_dryMice2[FU_time_pos > 0,]))
+
+sens_Na_no_prop_summary <- summary(sens_Na_no_prop)
+sens_Na_no_prop_summary
+
+
+#write.csv(sens_Na_no_prop_summary[[7]], "sens_Na_no_prop_p.csv")
+#write.csv(sens_Na_no_prop_summary[[8]], "sens_Na_no_prop_95CI.csv")
+write.csv(sens_Na_no_prop_summary[7:8], "sens_Na_no_prop.csv")
+
+# mod2: antiviral therapy and propoensiy score
+sens_NA_prop <- with(complete_dryMice2[FU_time_pos > 0,], 
+                      coxph(Surv(FU_time_pos,HCC_comb) ~ smok_cons_cat + alc_cons_cat + 
+                              CKD_comb + ascites_comb + cvd_collapse + 
+                              propensity_scores + antiviral_bin + nonHCC_neop_alt_comb + pepUC_comb + 
+                              anti_dm_drug + antihypertensive_use + nsaid_use + statin_use, 
+                            data = complete_dryMice2[FU_time_pos > 0,]))
+
+sens_NA_prop_summary <- summary(sens_NA_prop)
+sens_NA_prop_summary
+
+
+#write.csv(sens_NA_prop_summary[[7]], "sens_NA_prop_p.csv")
+#write.csv(sens_NA_prop_summary[[8]], "sens_NA_prop_95CI.csv")
+write.csv(sens_NA_prop_summary[7:8], "sens_NA_prop.csv")
+
+              
+```
+
+
+# look at restricting covariates, automate model building and see how it compares to our model
+
+
+
